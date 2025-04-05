@@ -188,6 +188,36 @@ The demo script demonstrates the following HubQueue operations:
 
 > **Note:** The script creates real repositories, issues, and other resources in your GitHub account. While it attempts to clean up after itself, make sure you understand what it's doing before running it.
 
+### Project Setup Scripts
+
+HubQueue also includes scripts for setting up basic Python and JavaScript projects:
+
+#### Python Project Setup
+
+```cmd
+proj_setup_python.cmd project_name
+```
+
+This script creates a basic Python project with:
+- Project structure with source, tests, and docs directories
+- Virtual environment for Python version management
+- setup.py, requirements.txt, and other configuration files
+- Sample module and test
+
+#### JavaScript Project Setup
+
+```cmd
+proj_setup_js.cmd project_name
+```
+
+This script creates a basic JavaScript project with:
+- Project structure with source, test, and docs directories
+- package.json for Node.js package management
+- ESLint, Prettier, and Jest configuration
+- Sample module and test
+
+See [PROJECT_SETUP_README.md](PROJECT_SETUP_README.md) for more details.
+
 ## License
 
 [MIT](LICENSE)
