@@ -11,7 +11,8 @@ This guide provides detailed information on how to use HubQueue, a command-line 
 5. [Branch Operations](#branch-operations)
 6. [Collaboration](#collaboration)
 7. [Issue Tracking](#issue-tracking)
-8. [Logging](#logging)
+8. [Release Management](#release-management)
+9. [Logging](#logging)
 
 ## Installation
 
@@ -356,6 +357,84 @@ hubqueue checkout-pr owner/repo 123 --directory path/to/repo
 ```
 
 This will fetch the pull request and create a local branch named `pr-123` that you can review and test.
+
+## Release Management
+
+HubQueue provides tools for managing releases, including version updates, tagging, and GitHub releases.
+
+### Version Management
+
+Update version identifiers in your project files:
+
+```bash
+# Auto-increment patch version (e.g., 1.0.0 -> 1.0.1)
+hubqueue release update-version-cmd
+
+# Set specific version
+hubqueue release update-version-cmd --version 2.0.0
+
+# Use custom version pattern
+hubqueue release update-version-cmd --pattern "v\d+\.\d+"
+
+# Update specific files
+hubqueue release update-version-cmd --file setup.py --file __init__.py
+```
+
+### Git Tagging
+
+Create and manage Git tags for releases:
+
+```bash
+# Create a tag
+hubqueue release tag v1.0.0 --message "Release version 1.0.0"
+
+# Create a signed tag
+hubqueue release tag v1.0.0 --sign
+
+# Create and push a tag
+hubqueue release tag v1.0.0 --push
+```
+
+### Release Notes
+
+Generate release notes from Git commits:
+
+```bash
+# Generate release notes between the previous tag and HEAD
+hubqueue release notes v1.0.0
+
+# Generate release notes between specific tags
+hubqueue release notes v1.0.0 --previous-tag v0.9.0
+
+# Save release notes to a file
+hubqueue release notes v1.0.0 --output release-notes.md
+```
+
+The generated release notes will categorize commits into features, bug fixes, documentation, and other changes based on commit message patterns.
+
+### GitHub Releases
+
+Create GitHub releases and upload assets:
+
+```bash
+# Create a simple release
+hubqueue release publish owner/repo v1.0.0
+
+# Create a release with a custom title
+hubqueue release publish owner/repo v1.0.0 --name "Version 1.0.0"
+
+# Create a release with release notes from a file
+hubqueue release publish owner/repo v1.0.0 --notes-file release-notes.md
+
+# Create a draft release
+hubqueue release publish owner/repo v1.0.0 --draft
+
+# Create a prerelease
+hubqueue release publish owner/repo v1.0.0 --prerelease
+
+# Upload assets to the release
+hubqueue release publish owner/repo v1.0.0 --asset dist/app.zip --asset docs/manual.pdf
+```
 
 ## Command Reference
 

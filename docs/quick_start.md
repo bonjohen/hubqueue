@@ -151,6 +151,22 @@ hubqueue view-pr owner/repo 45
 hubqueue checkout-pr owner/repo 45
 ```
 
+### Release Management
+
+```bash
+# Update version in files
+hubqueue release update-version-cmd --version 1.0.0
+
+# Create and push a tag
+hubqueue release tag v1.0.0 --push
+
+# Generate release notes
+hubqueue release notes v1.0.0 --output release-notes.md
+
+# Create a GitHub release
+hubqueue release publish owner/repo v1.0.0 --notes-file release-notes.md
+```
+
 ## Configuration
 
 ```bash

@@ -422,3 +422,81 @@ Options:
 - `--head`: Filter by head branch name
 - `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
 - `--format`: Output format (table, simple) (default: simple)
+
+## Release Management Commands
+
+### `hubqueue release`
+
+Release management commands.
+
+```
+hubqueue release [OPTIONS] COMMAND [ARGS]...
+```
+
+#### `hubqueue release update-version-cmd`
+
+Update version identifiers in files.
+
+```
+hubqueue release update-version-cmd [OPTIONS]
+```
+
+Options:
+- `--directory`: Base directory (default: current directory)
+- `--version`: New version string (default: increment patch version)
+- `--pattern`: Regex pattern to match version (default: semantic versioning)
+- `--file`: File to update (can be specified multiple times)
+
+#### `hubqueue release tag`
+
+Create a Git tag for the current commit.
+
+```
+hubqueue release tag [OPTIONS] TAG_NAME
+```
+
+Arguments:
+- `TAG_NAME`: Tag name (e.g., "v1.0.0")
+
+Options:
+- `--message`: Tag message (default: 'Release TAG_NAME')
+- `--directory`: Repository directory (default: current directory)
+- `--sign`: Create a signed tag
+- `--push`: Push tag to remote after creation
+- `--remote`: Remote name for pushing (default: origin)
+
+#### `hubqueue release notes`
+
+Generate release notes from Git commits.
+
+```
+hubqueue release notes [OPTIONS] TAG_NAME
+```
+
+Arguments:
+- `TAG_NAME`: Tag name for the release
+
+Options:
+- `--previous-tag`: Previous tag name for comparison
+- `--directory`: Repository directory (default: current directory)
+- `--output`: Output file for release notes (default: print to console)
+
+#### `hubqueue release publish`
+
+Create a GitHub release and optionally upload assets.
+
+```
+hubqueue release publish [OPTIONS] REPO_NAME TAG_NAME
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+- `TAG_NAME`: Tag name for the release
+
+Options:
+- `--name`: Release title (default: tag name)
+- `--notes-file`: File containing release notes
+- `--draft`: Create as draft release
+- `--prerelease`: Mark as prerelease
+- `--asset`: Asset file to upload (can be specified multiple times)
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)

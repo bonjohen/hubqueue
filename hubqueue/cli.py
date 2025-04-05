@@ -26,6 +26,11 @@ from .issues import (
     create_issue, checkout_pull_request,
     get_issue, get_pull_request
 )
+from .release import (
+    update_version, create_tag, push_tag,
+    generate_release_notes, create_github_release,
+    upload_release_asset
+)
 from .logging import get_logger, setup_logging
 
 # Get logger
@@ -742,6 +747,141 @@ def view_pr(repo_name, pr_number, token):
                 click.echo(f"{comment['body']}\n")
     except Exception as e:
         logger.error(f"Error viewing pull request: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+# Release management commands group
+@main.group()
+def release():
+    """Release management commands."""
+    pass
+
+
+@release.command()
+@click.option("--directory", default=".", help="Base directory (default: current directory)")
+@click.option("--version", help="New version string (default: increment patch version)")
+@click.option("--pattern", help="Regex pattern to match version (default: semantic versioning)")
+@click.option("--file", "files", multiple=True, help="File to update (can be specified multiple times)")
+def update_version_cmd(directory, version, pattern, files):
+    """Update version identifiers in files."""
+    logger.debug(f"Updating version identifiers in {directory}")
+    try:
+        # Convert files to list if provided
+        files_list = list(files) if files else None
+
+        # Update version
+        result = update_version(directory, version, pattern, files_list)
+
+        logger.info(f"Updated version from {result['old_version']} to {result['new_version']}")
+        click.echo(f"Updated version from {result['old_version']} to {result['new_version']}")
+
+        if result['updated_files']:
+            click.echo("\nUpdated files:")
+            for file_path in result['updated_files']:
+                click.echo(f"  {file_path}")
+        else:
+            click.echo("No files were updated.")
+    except Exception as e:
+        logger.error(f"Error updating version: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@release.command()
+@click.argument("tag_name")
+@click.option("--message", help="Tag message (default: 'Release TAG_NAME')")
+@click.option("--directory", default=".", help="Repository directory (default: current directory)")
+@click.option("--sign", is_flag=True, help="Create a signed tag")
+@click.option("--push", is_flag=True, help="Push tag to remote after creation")
+@click.option("--remote", default="origin", help="Remote name for pushing (default: origin)")
+def tag(tag_name, message, directory, sign, push, remote):
+    """Create a Git tag for the current commit."""
+    logger.debug(f"Creating tag {tag_name}")
+    try:
+        # Create tag
+        created_tag = create_tag(tag_name, message, directory, sign)
+
+        logger.info(f"Created tag {created_tag}")
+        click.echo(f"Created tag {created_tag}")
+
+        # Push tag if requested
+        if push:
+            push_tag(created_tag, remote, directory)
+            click.echo(f"Pushed tag {created_tag} to {remote}")
+    except Exception as e:
+        logger.error(f"Error creating tag: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@release.command()
+@click.argument("tag_name")
+@click.option("--previous-tag", help="Previous tag name for comparison")
+@click.option("--directory", default=".", help="Repository directory (default: current directory)")
+@click.option("--output", help="Output file for release notes (default: print to console)")
+def notes(tag_name, previous_tag, directory, output):
+    """Generate release notes from Git commits."""
+    logger.debug(f"Generating release notes for {tag_name}")
+    try:
+        # Generate release notes
+        notes = generate_release_notes(tag_name, previous_tag, directory)
+
+        # Output release notes
+        if output:
+            with open(output, "w", encoding="utf-8") as f:
+                f.write(notes)
+            logger.info(f"Wrote release notes to {output}")
+            click.echo(f"Wrote release notes to {output}")
+        else:
+            click.echo(notes)
+    except Exception as e:
+        logger.error(f"Error generating release notes: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@release.command()
+@click.argument("repo_name")
+@click.argument("tag_name")
+@click.option("--name", help="Release title (default: tag name)")
+@click.option("--notes-file", help="File containing release notes")
+@click.option("--draft", is_flag=True, help="Create as draft release")
+@click.option("--prerelease", is_flag=True, help="Mark as prerelease")
+@click.option("--asset", multiple=True, help="Asset file to upload (can be specified multiple times)")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def publish(repo_name, tag_name, name, notes_file, draft, prerelease, asset, token):
+    """Create a GitHub release and optionally upload assets."""
+    logger.debug(f"Creating GitHub release for {repo_name} with tag {tag_name}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Read release notes from file if provided
+        body = None
+        if notes_file:
+            with open(notes_file, "r", encoding="utf-8") as f:
+                body = f.read()
+
+        # Create release
+        release = create_github_release(repo_name, tag_name, name, body, draft, prerelease, token)
+
+        logger.info(f"Created GitHub release {tag_name} for {repo_name}")
+        click.echo(f"Created GitHub release: {release['name']}")
+        click.echo(f"URL: {release['html_url']}")
+
+        # Upload assets if provided
+        if asset:
+            click.echo("\nUploading assets:")
+            for asset_path in asset:
+                try:
+                    asset_info = upload_release_asset(repo_name, release['id'], asset_path, None, token)
+                    click.echo(f"  Uploaded {asset_info['name']} ({asset_info['size']} bytes)")
+                    click.echo(f"  URL: {asset_info['browser_download_url']}")
+                except Exception as e:
+                    logger.error(f"Error uploading asset {asset_path}: {str(e)}")
+                    click.echo(f"  Error uploading {asset_path}: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error creating GitHub release: {str(e)}")
         click.echo(f"Error: {str(e)}")
 
 
