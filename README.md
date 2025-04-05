@@ -145,6 +145,49 @@ pip install -e .
 pytest
 ```
 
+### Demo Script
+
+The project includes a comprehensive demo script `test_hub.cmd` that demonstrates all the core functionality of HubQueue. This script is designed to be run outside of the project and GitHub environment, allowing you to test HubQueue in your own environment.
+
+#### Prerequisites
+
+Before running the demo script, make sure you have:
+
+1. Python 3.6 or higher installed
+2. A GitHub account
+3. A GitHub personal access token with the following scopes:
+   - `repo` (Full control of private repositories)
+   - `user` (Update all user data)
+   - `admin:org` (Full control of orgs and teams)
+   - `delete_repo` (Delete repositories)
+
+#### Running the Demo Script
+
+**Windows:**
+```cmd
+test_hub.cmd
+```
+
+**Linux/macOS:**
+A similar script is available in the `test_scripts` directory:
+```bash
+./test_scripts/test_hub_comprehensive.sh
+```
+
+#### What the Demo Script Does
+
+The demo script demonstrates the following HubQueue operations:
+
+1. **Repository Management** - Creating, listing, updating, and deleting repositories
+2. **Branch Operations** - Creating branches, setting default branches
+3. **Issue Tracking** - Creating, listing, updating, and commenting on issues
+4. **Release Management** - Creating, listing, and getting release details
+5. **Collaboration** - Managing collaborators (example only)
+6. **Notifications** - Listing notifications
+7. **Interactive Features** - UI customization and error handling
+
+> **Note:** The script creates real repositories, issues, and other resources in your GitHub account. While it attempts to clean up after itself, make sure you understand what it's doing before running it.
+
 ## License
 
 [MIT](LICENSE)

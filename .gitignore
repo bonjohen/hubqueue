@@ -128,13 +128,11 @@ dmypy.json
 .github_token
 credentials.json
 
-# Test scripts
-test_hub.cmd
-test_hub_simple.cmd
-test_hub_comprehensive.cmd
-test_hub_simple.sh
-test_hub_comprehensive.sh
-TEST_SCRIPTS_README.md
+# Test scripts in test_scripts directory
+test_scripts/test_hub_simple.cmd
+test_scripts/test_hub_comprehensive.cmd
+test_scripts/test_hub_simple.sh
+test_scripts/test_hub_comprehensive.sh
 
 # Temporary files
 *.tmp
