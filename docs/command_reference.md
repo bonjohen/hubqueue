@@ -500,3 +500,184 @@ Options:
 - `--prerelease`: Mark as prerelease
 - `--asset`: Asset file to upload (can be specified multiple times)
 - `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+## Workflow Automation Commands
+
+### `hubqueue workflow`
+
+Workflow automation and monitoring commands.
+
+```
+hubqueue workflow [OPTIONS] COMMAND [ARGS]...
+```
+
+#### `hubqueue workflow list`
+
+List GitHub Actions workflows for a repository.
+
+```
+hubqueue workflow list [OPTIONS] REPO_NAME
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue workflow trigger`
+
+Trigger a GitHub Actions workflow run.
+
+```
+hubqueue workflow trigger [OPTIONS] REPO_NAME WORKFLOW_ID
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+- `WORKFLOW_ID`: Workflow ID or file name
+
+Options:
+- `--ref`: Git reference (branch, tag, SHA) (default: main)
+- `--input`: Workflow input in format 'key=value' (can be specified multiple times)
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+- `--monitor`: Monitor workflow run until completion
+- `--interval`: Polling interval in seconds for monitoring (default: 5)
+- `--timeout`: Timeout in seconds for monitoring (default: 300)
+
+#### `hubqueue workflow runs`
+
+List GitHub Actions workflow runs for a repository.
+
+```
+hubqueue workflow runs [OPTIONS] REPO_NAME
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+
+Options:
+- `--workflow`: Filter by workflow ID or file name
+- `--status`: Filter by status (queued, in_progress, completed)
+- `--branch`: Filter by branch name
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue workflow view`
+
+View detailed information about a workflow run.
+
+```
+hubqueue workflow view [OPTIONS] REPO_NAME RUN_ID
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+- `RUN_ID`: Workflow run ID
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue workflow cancel`
+
+Cancel a workflow run.
+
+```
+hubqueue workflow cancel [OPTIONS] REPO_NAME RUN_ID
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+- `RUN_ID`: Workflow run ID
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue workflow rerun`
+
+Rerun a workflow run.
+
+```
+hubqueue workflow rerun [OPTIONS] REPO_NAME RUN_ID
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+- `RUN_ID`: Workflow run ID
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue workflow secrets`
+
+List repository secrets.
+
+```
+hubqueue workflow secrets [OPTIONS] REPO_NAME
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue workflow set-secret`
+
+Create or update a repository secret.
+
+```
+hubqueue workflow set-secret [OPTIONS] REPO_NAME SECRET_NAME
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+- `SECRET_NAME`: Secret name
+
+Options:
+- `--value`: Secret value (will prompt if not provided)
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue workflow delete-secret`
+
+Delete a repository secret.
+
+```
+hubqueue workflow delete-secret [OPTIONS] REPO_NAME SECRET_NAME
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+- `SECRET_NAME`: Secret name
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue workflow caches`
+
+List GitHub Actions caches for a repository.
+
+```
+hubqueue workflow caches [OPTIONS] REPO_NAME
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue workflow delete-cache`
+
+Delete a GitHub Actions cache.
+
+```
+hubqueue workflow delete-cache [OPTIONS] REPO_NAME
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+
+Options:
+- `--id`: Cache ID to delete
+- `--key`: Cache key to delete
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)

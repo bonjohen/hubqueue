@@ -12,7 +12,8 @@ This guide provides detailed information on how to use HubQueue, a command-line 
 6. [Collaboration](#collaboration)
 7. [Issue Tracking](#issue-tracking)
 8. [Release Management](#release-management)
-9. [Logging](#logging)
+9. [Workflow Automation](#workflow-automation)
+10. [Logging](#logging)
 
 ## Installation
 
@@ -434,6 +435,79 @@ hubqueue release publish owner/repo v1.0.0 --prerelease
 
 # Upload assets to the release
 hubqueue release publish owner/repo v1.0.0 --asset dist/app.zip --asset docs/manual.pdf
+```
+
+## Workflow Automation
+
+HubQueue provides tools for managing GitHub Actions workflows, including triggering, monitoring, and managing workflow runs.
+
+### Workflow Management
+
+List and trigger GitHub Actions workflows:
+
+```bash
+# List all workflows in a repository
+hubqueue workflow list owner/repo
+
+# Trigger a workflow by ID or filename
+hubqueue workflow trigger owner/repo ci.yml --ref main
+
+# Trigger a workflow with input parameters
+hubqueue workflow trigger owner/repo ci.yml --input version=1.0.0 --input environment=production
+
+# Trigger and monitor a workflow until completion
+hubqueue workflow trigger owner/repo ci.yml --monitor --timeout 600
+```
+
+### Workflow Run Management
+
+List, view, and manage workflow runs:
+
+```bash
+# List workflow runs
+hubqueue workflow runs owner/repo
+
+# Filter runs by status, branch, or workflow
+hubqueue workflow runs owner/repo --status completed --branch main --workflow ci.yml
+
+# View detailed information about a workflow run
+hubqueue workflow view owner/repo 123456789
+
+# Cancel a workflow run
+hubqueue workflow cancel owner/repo 123456789
+
+# Rerun a workflow run
+hubqueue workflow rerun owner/repo 123456789
+```
+
+### Repository Secrets
+
+Manage GitHub repository secrets:
+
+```bash
+# List repository secrets
+hubqueue workflow secrets owner/repo
+
+# Create or update a secret
+hubqueue workflow set-secret owner/repo API_KEY
+
+# Delete a secret
+hubqueue workflow delete-secret owner/repo API_KEY
+```
+
+### Workflow Caches
+
+Manage GitHub Actions caches:
+
+```bash
+# List workflow caches
+hubqueue workflow caches owner/repo
+
+# Delete a cache by ID
+hubqueue workflow delete-cache owner/repo --id 12345
+
+# Delete a cache by key
+hubqueue workflow delete-cache owner/repo --key npm-cache
 ```
 
 ## Command Reference

@@ -167,6 +167,26 @@ hubqueue release notes v1.0.0 --output release-notes.md
 hubqueue release publish owner/repo v1.0.0 --notes-file release-notes.md
 ```
 
+### Workflow Automation
+
+```bash
+# List workflows
+hubqueue workflow list owner/repo
+
+# Trigger a workflow
+hubqueue workflow trigger owner/repo ci.yml --input version=1.0.0
+
+# List workflow runs
+hubqueue workflow runs owner/repo --status in_progress
+
+# View workflow run details
+hubqueue workflow view owner/repo 123456789
+
+# Manage repository secrets
+hubqueue workflow secrets owner/repo
+hubqueue workflow set-secret owner/repo API_KEY
+```
+
 ## Configuration
 
 ```bash

@@ -31,6 +31,12 @@ from .release import (
     generate_release_notes, create_github_release,
     upload_release_asset
 )
+from .workflow import (
+    list_workflows, trigger_workflow, list_workflow_runs,
+    get_workflow_run, monitor_workflow_run, cancel_workflow_run,
+    rerun_workflow_run, list_repository_secrets, create_repository_secret,
+    delete_repository_secret, list_workflow_caches, delete_workflow_cache
+)
 from .logging import get_logger, setup_logging
 
 # Get logger
@@ -882,6 +888,420 @@ def publish(repo_name, tag_name, name, notes_file, draft, prerelease, asset, tok
                     click.echo(f"  Error uploading {asset_path}: {str(e)}")
     except Exception as e:
         logger.error(f"Error creating GitHub release: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+# Workflow automation and monitoring commands group
+@main.group()
+def workflow():
+    """Workflow automation and monitoring commands."""
+    pass
+
+
+@workflow.command("list")
+@click.argument("repo_name")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def list_workflows_cmd(repo_name, token):
+    """List GitHub Actions workflows for a repository."""
+    logger.debug(f"Listing workflows for repository {repo_name}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # List workflows
+        workflows = list_workflows(repo_name, token)
+
+        if not workflows:
+            logger.info(f"No workflows found for {repo_name}")
+            click.echo(f"No workflows found for {repo_name}")
+            return
+
+        # Display workflows
+        headers = ["ID", "Name", "Path", "State", "Updated"]
+        table_data = [
+            [
+                workflow["id"],
+                workflow["name"],
+                workflow["path"],
+                workflow["state"],
+                workflow["updated_at"],
+            ] for workflow in workflows
+        ]
+
+        click.echo(f"Workflows for {repo_name}:")
+        click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
+    except Exception as e:
+        logger.error(f"Error listing workflows: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@workflow.command()
+@click.argument("repo_name")
+@click.argument("workflow_id")
+@click.option("--ref", default="main", help="Git reference (branch, tag, SHA) (default: main)")
+@click.option("--input", "inputs", multiple=True, help="Workflow input in format 'key=value' (can be specified multiple times)")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+@click.option("--monitor", is_flag=True, help="Monitor workflow run until completion")
+@click.option("--interval", default=5, help="Polling interval in seconds for monitoring (default: 5)")
+@click.option("--timeout", default=300, help="Timeout in seconds for monitoring (default: 300)")
+def trigger(repo_name, workflow_id, ref, inputs, token, monitor, interval, timeout):
+    """Trigger a GitHub Actions workflow run."""
+    logger.debug(f"Triggering workflow {workflow_id} in repository {repo_name}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Parse inputs
+        input_dict = {}
+        for input_str in inputs:
+            key, value = input_str.split("=", 1)
+            input_dict[key] = value
+
+        # Trigger workflow
+        run = trigger_workflow(repo_name, workflow_id, ref, input_dict, token)
+
+        logger.info(f"Triggered workflow {workflow_id} in {repo_name}")
+        click.echo(f"Triggered workflow: {run['workflow_name']}")
+        click.echo(f"URL: {run['url']}")
+
+        # Monitor workflow run if requested
+        if monitor and run.get("run_id"):
+            click.echo("\nMonitoring workflow run...")
+            run_info = monitor_workflow_run(repo_name, run["run_id"], interval, timeout, token)
+
+            if run_info.get("timed_out"):
+                click.echo(f"Monitoring timed out after {timeout} seconds")
+                click.echo(f"Current status: {run_info['status']}")
+            else:
+                click.echo(f"Workflow run completed with conclusion: {run_info['conclusion']}")
+    except Exception as e:
+        logger.error(f"Error triggering workflow: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@workflow.command("runs")
+@click.argument("repo_name")
+@click.option("--workflow", help="Filter by workflow ID or file name")
+@click.option("--status", type=click.Choice(["queued", "in_progress", "completed"]), help="Filter by status")
+@click.option("--branch", help="Filter by branch name")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def list_runs(repo_name, workflow, status, branch, token):
+    """List GitHub Actions workflow runs for a repository."""
+    logger.debug(f"Listing workflow runs for repository {repo_name}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # List workflow runs
+        runs = list_workflow_runs(repo_name, workflow, status, branch, token)
+
+        if not runs:
+            logger.info(f"No workflow runs found for {repo_name}")
+            click.echo(f"No workflow runs found for {repo_name}")
+            return
+
+        # Display workflow runs
+        headers = ["ID", "Name", "Status", "Conclusion", "Branch", "Created"]
+        table_data = [
+            [
+                run["id"],
+                run["name"],
+                run["status"],
+                run["conclusion"] or "N/A",
+                run["branch"],
+                run["created_at"],
+            ] for run in runs
+        ]
+
+        click.echo(f"Workflow runs for {repo_name}:")
+        click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
+    except Exception as e:
+        logger.error(f"Error listing workflow runs: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@workflow.command("view")
+@click.argument("repo_name")
+@click.argument("run_id", type=int)
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def view_run(repo_name, run_id, token):
+    """View detailed information about a workflow run."""
+    logger.debug(f"Viewing workflow run {run_id} from repository {repo_name}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Get workflow run
+        run = get_workflow_run(repo_name, run_id, token)
+
+        # Display workflow run information
+        click.echo(f"Workflow Run: {run['name']} (#{run['id']})")
+        click.echo(f"Status: {run['status']}")
+        click.echo(f"Conclusion: {run['conclusion'] or 'N/A'}")
+        click.echo(f"Branch: {run['branch']}")
+        click.echo(f"Commit: {run['commit']}")
+        click.echo(f"Created: {run['created_at']}")
+        click.echo(f"Updated: {run['updated_at']}")
+        click.echo(f"URL: {run['url']}")
+
+        # Display jobs
+        if run["jobs"]:
+            click.echo("\nJobs:")
+            for job in run["jobs"]:
+                click.echo(f"\n  {job['name']} - {job['status']} ({job['conclusion'] or 'N/A'})")
+                click.echo(f"  Started: {job['started_at'] or 'N/A'}")
+                click.echo(f"  Completed: {job['completed_at'] or 'N/A'}")
+
+                # Display steps
+                if job["steps"]:
+                    click.echo("\n  Steps:")
+                    for step in job["steps"]:
+                        click.echo(f"    {step['number']}. {step['name']} - {step['status']} ({step['conclusion'] or 'N/A'})")
+        else:
+            click.echo("\nNo jobs found for this workflow run.")
+    except Exception as e:
+        logger.error(f"Error viewing workflow run: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@workflow.command()
+@click.argument("repo_name")
+@click.argument("run_id", type=int)
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def cancel(repo_name, run_id, token):
+    """Cancel a workflow run."""
+    logger.debug(f"Cancelling workflow run {run_id} in repository {repo_name}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Cancel workflow run
+        result = cancel_workflow_run(repo_name, run_id, token)
+
+        if result:
+            logger.info(f"Cancelled workflow run {run_id} in {repo_name}")
+            click.echo(f"Cancelled workflow run {run_id}")
+        else:
+            logger.warning(f"Failed to cancel workflow run {run_id} in {repo_name}")
+            click.echo(f"Failed to cancel workflow run {run_id}")
+    except Exception as e:
+        logger.error(f"Error cancelling workflow run: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@workflow.command()
+@click.argument("repo_name")
+@click.argument("run_id", type=int)
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def rerun(repo_name, run_id, token):
+    """Rerun a workflow run."""
+    logger.debug(f"Rerunning workflow run {run_id} in repository {repo_name}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Rerun workflow run
+        result = rerun_workflow_run(repo_name, run_id, token)
+
+        if result:
+            logger.info(f"Reran workflow run {run_id} in {repo_name}")
+            click.echo(f"Reran workflow run {run_id}")
+        else:
+            logger.warning(f"Failed to rerun workflow run {run_id} in {repo_name}")
+            click.echo(f"Failed to rerun workflow run {run_id}")
+    except Exception as e:
+        logger.error(f"Error rerunning workflow run: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@workflow.command("secrets")
+@click.argument("repo_name")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def list_secrets(repo_name, token):
+    """List repository secrets."""
+    logger.debug(f"Listing secrets for repository {repo_name}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # List secrets
+        secrets = list_repository_secrets(repo_name, token)
+
+        if not secrets:
+            logger.info(f"No secrets found for {repo_name}")
+            click.echo(f"No secrets found for {repo_name}")
+            return
+
+        # Display secrets
+        headers = ["Name", "Created", "Updated"]
+        table_data = [
+            [
+                secret["name"],
+                secret["created_at"],
+                secret["updated_at"],
+            ] for secret in secrets
+        ]
+
+        click.echo(f"Secrets for {repo_name}:")
+        click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
+    except Exception as e:
+        logger.error(f"Error listing secrets: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@workflow.command("set-secret")
+@click.argument("repo_name")
+@click.argument("secret_name")
+@click.option("--value", prompt=True, hide_input=True, help="Secret value")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def set_secret(repo_name, secret_name, value, token):
+    """Create or update a repository secret."""
+    logger.debug(f"Setting secret {secret_name} for repository {repo_name}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Create or update secret
+        result = create_repository_secret(repo_name, secret_name, value, token)
+
+        if result:
+            logger.info(f"Set secret {secret_name} for {repo_name}")
+            click.echo(f"Successfully set secret {secret_name}")
+        else:
+            logger.warning(f"Failed to set secret {secret_name} for {repo_name}")
+            click.echo(f"Failed to set secret {secret_name}")
+    except Exception as e:
+        logger.error(f"Error setting secret: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@workflow.command("delete-secret")
+@click.argument("repo_name")
+@click.argument("secret_name")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def delete_secret(repo_name, secret_name, token):
+    """Delete a repository secret."""
+    logger.debug(f"Deleting secret {secret_name} from repository {repo_name}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Delete secret
+        result = delete_repository_secret(repo_name, secret_name, token)
+
+        if result:
+            logger.info(f"Deleted secret {secret_name} from {repo_name}")
+            click.echo(f"Successfully deleted secret {secret_name}")
+        else:
+            logger.warning(f"Failed to delete secret {secret_name} from {repo_name}")
+            click.echo(f"Failed to delete secret {secret_name}")
+    except Exception as e:
+        logger.error(f"Error deleting secret: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@workflow.command("caches")
+@click.argument("repo_name")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def list_caches(repo_name, token):
+    """List GitHub Actions caches for a repository."""
+    logger.debug(f"Listing workflow caches for repository {repo_name}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # List caches
+        caches = list_workflow_caches(repo_name, token)
+
+        if not caches:
+            logger.info(f"No workflow caches found for {repo_name}")
+            click.echo(f"No workflow caches found for {repo_name}")
+            return
+
+        # Display caches
+        headers = ["ID", "Key", "Ref", "Size (bytes)", "Created"]
+        table_data = [
+            [
+                cache["id"],
+                cache["key"],
+                cache["ref"],
+                cache["size"],
+                cache["created_at"],
+            ] for cache in caches
+        ]
+
+        click.echo(f"Workflow caches for {repo_name}:")
+        click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
+    except Exception as e:
+        logger.error(f"Error listing workflow caches: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@workflow.command("delete-cache")
+@click.argument("repo_name")
+@click.option("--id", "cache_id", help="Cache ID to delete")
+@click.option("--key", "cache_key", help="Cache key to delete")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def delete_cache(repo_name, cache_id, cache_key, token):
+    """Delete a GitHub Actions cache."""
+    logger.debug(f"Deleting workflow cache from repository {repo_name}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    if not cache_id and not cache_key:
+        logger.error("Either --id or --key must be provided")
+        click.echo("Error: Either --id or --key must be provided")
+        return
+
+    try:
+        # Delete cache
+        result = delete_workflow_cache(repo_name, cache_id, cache_key, token)
+
+        if result:
+            if cache_id:
+                logger.info(f"Deleted workflow cache {cache_id} from {repo_name}")
+                click.echo(f"Successfully deleted workflow cache {cache_id}")
+            else:
+                logger.info(f"Deleted workflow cache with key {cache_key} from {repo_name}")
+                click.echo(f"Successfully deleted workflow cache with key {cache_key}")
+        else:
+            logger.warning(f"Failed to delete workflow cache from {repo_name}")
+            click.echo(f"Failed to delete workflow cache")
+    except Exception as e:
+        logger.error(f"Error deleting workflow cache: {str(e)}")
         click.echo(f"Error: {str(e)}")
 
 
