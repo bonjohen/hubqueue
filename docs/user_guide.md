@@ -11,6 +11,7 @@ This guide provides detailed information on how to use HubQueue, a command-line 
 5. [Branch Operations](#branch-operations)
 6. [Collaboration](#collaboration)
 7. [Issue Tracking](#issue-tracking)
+8. [Logging](#logging)
 
 ## Installation
 
@@ -267,19 +268,94 @@ Track and manage issues and pull requests.
 
 ### Listing Issues
 
-List open issues for a repository:
+List issues for a repository with various filtering options:
 
 ```bash
+# List all open issues
 hubqueue list-issues --repo owner/repo
+
+# List closed issues
+hubqueue list-issues --repo owner/repo --state closed
+
+# List issues with specific labels
+hubqueue list-issues --repo owner/repo --label bug --label enhancement
+
+# List issues assigned to a specific user
+hubqueue list-issues --repo owner/repo --assignee username
+
+# Display issues in a table format
+hubqueue list-issues --repo owner/repo --format table
 ```
+
+### Creating Issues
+
+Create a new issue in a repository:
+
+```bash
+# Create a simple issue
+hubqueue create-issue-cmd owner/repo "Issue title"
+
+# Create an issue with a body
+hubqueue create-issue-cmd owner/repo "Issue title" --body "Detailed description of the issue"
+
+# Create an issue with labels and assignees
+hubqueue create-issue-cmd owner/repo "Issue title" --label bug --label priority --assignee username
+```
+
+### Viewing Issue Details
+
+View detailed information about a specific issue:
+
+```bash
+hubqueue view-issue owner/repo 123
+```
+
+This will display the issue title, description, status, labels, assignees, and all comments.
 
 ### Listing Pull Requests
 
-List open pull requests for a repository:
+List pull requests for a repository with various filtering options:
 
 ```bash
+# List all open pull requests
 hubqueue list-prs --repo owner/repo
+
+# List closed pull requests
+hubqueue list-prs --repo owner/repo --state closed
+
+# List pull requests targeting a specific branch
+hubqueue list-prs --repo owner/repo --base main
+
+# List pull requests from a specific branch
+hubqueue list-prs --repo owner/repo --head feature-branch
+
+# Display pull requests in a table format
+hubqueue list-prs --repo owner/repo --format table
 ```
+
+### Viewing Pull Request Details
+
+View detailed information about a specific pull request:
+
+```bash
+hubqueue view-pr owner/repo 123
+```
+
+This will display the pull request title, description, status, branches, changes, commits, and all comments.
+
+### Checking Out Pull Requests
+
+Check out a pull request locally for review:
+
+```bash
+# Check out a pull request in the current directory
+hubqueue checkout-pr owner/repo 123
+
+# Check out a pull request in a specific directory
+hubqueue checkout-pr owner/repo 123 --directory path/to/repo
+```
+
+This will fetch the pull request and create a local branch named `pr-123` that you can review and test.
 
 ## Command Reference
 
@@ -296,6 +372,35 @@ hubqueue repo --help
 hubqueue repo create --help
 ```
 
+## Logging
+
+HubQueue includes a comprehensive logging system that can help you debug issues and track operations.
+
+### Log Levels
+
+You can set the log level when running HubQueue commands:
+
+```bash
+hubqueue --log-level debug list-issues --repo owner/repo
+```
+
+Available log levels (from most to least verbose):
+- `debug`: Detailed debugging information
+- `info`: General information about operations (default)
+- `warning`: Warning messages
+- `error`: Error messages
+- `critical`: Critical errors
+
+### Log File
+
+You can also log to a file:
+
+```bash
+hubqueue --log-file hubqueue.log list-issues --repo owner/repo
+```
+
+This will write logs to the specified file in addition to displaying them in the console.
+
 ## Environment Variables
 
 HubQueue respects the following environment variables:
@@ -304,6 +409,8 @@ HubQueue respects the following environment variables:
 - `HUBQUEUE_EDITOR`: Preferred text editor
 - `EDITOR`: Fallback text editor
 - `VISUAL`: Another fallback text editor
+- `HUBQUEUE_LOG_LEVEL`: Default log level
+- `HUBQUEUE_LOG_FILE`: Default log file path
 
 ## Configuration File
 

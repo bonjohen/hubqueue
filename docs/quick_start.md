@@ -132,11 +132,23 @@ hubqueue repo collaborator owner/repo username
 ### Issue Tracking
 
 ```bash
-# List issues
-hubqueue list-issues --repo owner/repo
+# List issues with filtering
+hubqueue list-issues --repo owner/repo --state open --label bug
 
-# List pull requests
-hubqueue list-prs --repo owner/repo
+# Create a new issue
+hubqueue create-issue-cmd owner/repo "Bug report" --label bug
+
+# View issue details
+hubqueue view-issue owner/repo 123
+
+# List pull requests with filtering
+hubqueue list-prs --repo owner/repo --state open --base main
+
+# View pull request details
+hubqueue view-pr owner/repo 45
+
+# Check out a pull request locally
+hubqueue checkout-pr owner/repo 45
 ```
 
 ## Configuration

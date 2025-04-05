@@ -22,6 +22,8 @@ hubqueue [OPTIONS] COMMAND [ARGS]...
 Options:
 - `--version`: Show the version and exit.
 - `--help`: Show help message and exit.
+- `--log-level`: Set the logging level (debug, info, warning, error, critical). Default: info.
+- `--log-file`: Log to this file in addition to the console.
 
 ## Authentication Commands
 
@@ -325,9 +327,73 @@ Options:
 
 ## Issue and Pull Request Commands
 
+### `hubqueue create-issue-cmd`
+
+Create a new issue in a repository.
+
+```
+hubqueue create-issue-cmd [OPTIONS] REPO_NAME TITLE
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+- `TITLE`: Issue title
+
+Options:
+- `--body`: Issue body
+- `--label`: Label to apply (can be specified multiple times)
+- `--assignee`: Username to assign (can be specified multiple times)
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+### `hubqueue view-issue`
+
+View detailed information about an issue.
+
+```
+hubqueue view-issue [OPTIONS] REPO_NAME ISSUE_NUMBER
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+- `ISSUE_NUMBER`: Issue number
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+### `hubqueue view-pr`
+
+View detailed information about a pull request.
+
+```
+hubqueue view-pr [OPTIONS] REPO_NAME PR_NUMBER
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+- `PR_NUMBER`: Pull request number
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+### `hubqueue checkout-pr`
+
+Checkout a pull request locally for review.
+
+```
+hubqueue checkout-pr [OPTIONS] REPO_NAME PR_NUMBER
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+- `PR_NUMBER`: Pull request number
+
+Options:
+- `--directory`: Repository directory (default: current directory)
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
 ### `hubqueue list-issues`
 
-List open issues for a repository.
+List issues for a repository.
 
 ```
 hubqueue list-issues [OPTIONS]
@@ -335,11 +401,15 @@ hubqueue list-issues [OPTIONS]
 
 Options:
 - `--repo`: Repository name in format 'owner/repo'
+- `--state`: Issue state (open, closed, all) (default: open)
+- `--label`: Filter by label (can be specified multiple times)
+- `--assignee`: Filter by assignee username
 - `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+- `--format`: Output format (table, simple) (default: simple)
 
 ### `hubqueue list-prs`
 
-List open pull requests for a repository.
+List pull requests for a repository.
 
 ```
 hubqueue list-prs [OPTIONS]
@@ -347,4 +417,8 @@ hubqueue list-prs [OPTIONS]
 
 Options:
 - `--repo`: Repository name in format 'owner/repo'
+- `--state`: Pull request state (open, closed, all) (default: open)
+- `--base`: Filter by base branch name
+- `--head`: Filter by head branch name
 - `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+- `--format`: Output format (table, simple) (default: simple)
