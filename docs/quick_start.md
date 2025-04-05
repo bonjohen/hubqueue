@@ -241,6 +241,25 @@ hubqueue project add-issue owner/repo 12345 67890 42
 hubqueue project move-card owner/repo 12345 54321 67890
 ```
 
+### System Management
+
+```bash
+# Display system information
+hubqueue system info
+
+# Check dependencies
+hubqueue system check-dependencies
+
+# Check Git configuration
+hubqueue system git-config
+
+# Set up environment
+hubqueue system setup
+
+# Check for updates
+hubqueue system check-updates
+```
+
 ## Configuration
 
 ```bash

@@ -1211,3 +1211,95 @@ Arguments:
 Options:
 - `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
 - `--confirm`: Skip confirmation prompt
+
+## System Management Commands
+
+### `hubqueue system`
+
+System and environment management commands.
+
+```
+hubqueue system [OPTIONS] COMMAND [ARGS]...
+```
+
+#### `hubqueue system info`
+
+Get system information.
+
+```
+hubqueue system info [OPTIONS]
+```
+
+Options:
+- `--output`: Output file path
+- `--format`: Output format (json, table) (default: table)
+
+#### `hubqueue system check-dependencies`
+
+Check dependencies required by HubQueue.
+
+```
+hubqueue system check-dependencies [OPTIONS]
+```
+
+Options:
+- `--install-missing`: Install missing dependencies
+- `--upgrade`: Upgrade dependencies when installing
+
+#### `hubqueue system git-config`
+
+Check or set Git configuration.
+
+```
+hubqueue system git-config [OPTIONS]
+```
+
+Options:
+- `--set`: Set Git configuration
+- `--key`: Configuration key (required with --set)
+- `--value`: Configuration value (required with --set)
+- `--global/--local`: Set global or local configuration (default: global)
+
+#### `hubqueue system setup`
+
+Setup environment for HubQueue.
+
+```
+hubqueue system setup [OPTIONS]
+```
+
+Options:
+- `--force`: Force setup even if already configured
+
+#### `hubqueue system export`
+
+Export environment information to a file.
+
+```
+hubqueue system export [OPTIONS]
+```
+
+Options:
+- `--output`: Output file path
+
+#### `hubqueue system check-updates`
+
+Check for updates to HubQueue.
+
+```
+hubqueue system check-updates [OPTIONS]
+```
+
+Options:
+- `--install`: Install updates if available
+
+#### `hubqueue system windows-compatibility`
+
+Check Windows compatibility.
+
+```
+hubqueue system windows-compatibility [OPTIONS]
+```
+
+Options:
+- `--setup`: Setup Windows environment

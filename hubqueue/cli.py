@@ -2,6 +2,7 @@
 Command-line interface for HubQueue.
 """
 import os
+import json
 import click
 import webbrowser
 from pathlib import Path
@@ -54,6 +55,13 @@ from .projects import (
     add_note_to_project, move_project_card, delete_project_card,
     delete_project_column, delete_project_board, create_project_from_template,
     configure_project_automation
+)
+from .system import (
+    get_system_info, check_command_availability, check_git_config,
+    set_git_config, check_dependencies, install_dependency,
+    check_windows_compatibility, setup_windows_environment,
+    setup_unix_environment, setup_environment, export_environment,
+    check_for_updates, update_hubqueue
 )
 from .logging import get_logger, setup_logging
 
@@ -2468,6 +2476,243 @@ def delete_project(repo_name, project_id, token, confirm):
             click.echo(f"Failed to delete project #{project_id} from repository {repo_name}")
     except Exception as e:
         logger.error(f"Error deleting project: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+# System and environment management commands group
+@main.group()
+def system():
+    """System and environment management commands."""
+    pass
+
+
+@system.command("info")
+@click.option("--output", help="Output file path")
+@click.option("--format", type=click.Choice(["json", "table"]), default="table",
+              help="Output format (default: table)")
+def system_info(output, format):
+    """Get system information."""
+    logger.debug("Getting system information")
+    try:
+        # Get system information
+        info = get_system_info()
+
+        if format == "json":
+            # Output as JSON
+            if output:
+                # Write to file
+                with open(output, "w") as f:
+                    json.dump(info, f, indent=2)
+                logger.info(f"System information written to {output}")
+                click.echo(f"System information written to {output}")
+            else:
+                # Print to console
+                click.echo(json.dumps(info, indent=2))
+        else:
+            # Output as table
+            click.echo("System Information:")
+            click.echo(f"OS: {info['os']} {info['os_release']} {info['os_version']}")
+            click.echo(f"Architecture: {info['architecture']}")
+            click.echo(f"Processor: {info['processor']}")
+            click.echo(f"Python: {info['python_version']} ({info['python_implementation']})")
+            click.echo(f"Python Path: {info['python_path']}")
+
+            # Git information
+            click.echo(f"\nGit: {info['git_version']}")
+
+            # Installed packages
+            click.echo("\nInstalled Packages:")
+            packages_table = [[pkg["name"], pkg["version"]] for pkg in info["installed_packages"]]
+            click.echo(tabulate(packages_table, headers=["Package", "Version"], tablefmt="simple"))
+
+            # Environment variables (if requested)
+            if output:
+                # Write full information to file
+                with open(output, "w") as f:
+                    json.dump(info, f, indent=2)
+                logger.info(f"System information written to {output}")
+                click.echo(f"\nFull system information written to {output}")
+    except Exception as e:
+        logger.error(f"Error getting system information: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@system.command("check-dependencies")
+@click.option("--install-missing", is_flag=True, help="Install missing dependencies")
+@click.option("--upgrade", is_flag=True, help="Upgrade dependencies when installing")
+def check_dependencies_cmd(install_missing, upgrade):
+    """Check dependencies required by HubQueue."""
+    logger.debug("Checking dependencies")
+    try:
+        # Check dependencies
+        dependencies = check_dependencies()
+
+        # Display dependencies
+        click.echo("Dependencies:")
+        for dep, installed in dependencies.items():
+            status = "✓" if installed else "✗"
+            click.echo(f"{status} {dep}")
+
+        # Install missing dependencies if requested
+        if install_missing:
+            missing = [dep for dep, installed in dependencies.items() if not installed]
+            if missing:
+                click.echo(f"\nInstalling missing dependencies: {', '.join(missing)}")
+                for dep in missing:
+                    click.echo(f"Installing {dep}...")
+                    if install_dependency(dep, upgrade):
+                        click.echo(f"✓ {dep} installed successfully")
+                    else:
+                        click.echo(f"✗ Failed to install {dep}")
+            else:
+                click.echo("\nNo missing dependencies to install")
+    except Exception as e:
+        logger.error(f"Error checking dependencies: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@system.command("git-config")
+@click.option("--set", is_flag=True, help="Set Git configuration")
+@click.option("--key", help="Configuration key (required with --set)")
+@click.option("--value", help="Configuration value (required with --set)")
+@click.option("--global/--local", default=True, help="Set global or local configuration (default: global)")
+def git_config(set, key, value, global_config):
+    """Check or set Git configuration."""
+    logger.debug("Checking Git configuration")
+    try:
+        if set:
+            # Set Git configuration
+            if not key or not value:
+                logger.error("Key and value are required when setting Git configuration")
+                click.echo("Error: Key and value are required when setting Git configuration")
+                return
+
+            if set_git_config(key, value, global_config):
+                logger.info(f"Git configuration set successfully: {key}={value}")
+                click.echo(f"Git configuration set successfully: {key}={value}")
+            else:
+                logger.error(f"Failed to set Git configuration: {key}={value}")
+                click.echo(f"Failed to set Git configuration: {key}={value}")
+        else:
+            # Check Git configuration
+            config = check_git_config()
+
+            if "error" in config:
+                logger.error(f"Error checking Git configuration: {config['error']}")
+                click.echo(f"Error: {config['error']}")
+                return
+
+            click.echo("Git Configuration:")
+            for key, value in config.items():
+                click.echo(f"{key}: {value or 'Not set'}")
+    except Exception as e:
+        logger.error(f"Error with Git configuration: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@system.command("setup")
+@click.option("--force", is_flag=True, help="Force setup even if already configured")
+def setup_cmd(force):
+    # Note: force parameter is reserved for future use
+    """Setup environment for HubQueue."""
+    logger.debug("Setting up environment")
+    try:
+        # Setup environment
+        if setup_environment():
+            logger.info("Environment setup completed successfully")
+            click.echo("Environment setup completed successfully")
+        else:
+            logger.error("Environment setup failed")
+            click.echo("Environment setup failed")
+    except Exception as e:
+        logger.error(f"Error setting up environment: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@system.command("export")
+@click.option("--output", help="Output file path")
+def export_cmd(output):
+    """Export environment information to a file."""
+    logger.debug("Exporting environment information")
+    try:
+        # Export environment information
+        file_path = export_environment(output)
+
+        logger.info(f"Environment information exported to {file_path}")
+        click.echo(f"Environment information exported to {file_path}")
+    except Exception as e:
+        logger.error(f"Error exporting environment information: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@system.command("check-updates")
+@click.option("--install", is_flag=True, help="Install updates if available")
+def check_updates(install):
+    """Check for updates to HubQueue."""
+    logger.debug("Checking for updates")
+    try:
+        # Check for updates
+        update_info = check_for_updates()
+
+        if "error" in update_info:
+            logger.error(f"Error checking for updates: {update_info['error']}")
+            click.echo(f"Error checking for updates: {update_info['error']}")
+            return
+
+        click.echo(f"Current version: {update_info['current_version']}")
+        click.echo(f"Latest version: {update_info['latest_version']}")
+
+        if update_info["update_available"]:
+            click.echo("Update available!")
+
+            if install:
+                click.echo("Installing update...")
+                if update_hubqueue():
+                    logger.info("HubQueue updated successfully")
+                    click.echo("HubQueue updated successfully")
+                else:
+                    logger.error("Failed to update HubQueue")
+                    click.echo("Failed to update HubQueue")
+        else:
+            click.echo("HubQueue is up to date")
+    except Exception as e:
+        logger.error(f"Error checking for updates: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@system.command("windows-compatibility")
+@click.option("--setup", is_flag=True, help="Setup Windows environment")
+def windows_compatibility(setup):
+    """Check Windows compatibility."""
+    logger.debug("Checking Windows compatibility")
+    try:
+        # Check Windows compatibility
+        compatibility = check_windows_compatibility()
+
+        if not compatibility["is_windows"]:
+            logger.info("Not running on Windows")
+            click.echo("Not running on Windows")
+            return
+
+        click.echo("Windows Compatibility:")
+        click.echo(f"Windows Version: {compatibility['windows_version']}")
+        click.echo(f"Windows Release: {compatibility['windows_release']}")
+        click.echo(f"Windows Edition: {compatibility['windows_edition']}")
+        click.echo(f"Running in WSL: {'Yes' if compatibility.get('is_wsl', False) else 'No'}")
+        click.echo(f"Running in PowerShell: {'Yes' if compatibility.get('is_powershell', False) else 'No'}")
+        click.echo(f"Running in Command Prompt: {'Yes' if compatibility.get('is_cmd', False) else 'No'}")
+        click.echo(f"Git Bash Available: {'Yes' if compatibility.get('git_bash_available', False) else 'No'}")
+
+        if setup:
+            click.echo("\nSetting up Windows environment...")
+            if setup_windows_environment():
+                logger.info("Windows environment setup completed successfully")
+                click.echo("Windows environment setup completed successfully")
+            else:
+                logger.error("Windows environment setup failed")
+                click.echo("Windows environment setup failed")
+    except Exception as e:
+        logger.error(f"Error checking Windows compatibility: {str(e)}")
         click.echo(f"Error: {str(e)}")
 
 

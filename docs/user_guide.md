@@ -16,7 +16,8 @@ This guide provides detailed information on how to use HubQueue, a command-line 
 10. [Gist Management](#gist-management)
 11. [Project Templates](#project-templates)
 12. [Project Management](#project-management)
-13. [Logging](#logging)
+13. [System Management](#system-management)
+14. [Logging](#logging)
 
 ## Installation
 
@@ -605,6 +606,70 @@ hubqueue project move-card owner/repo 12345 54321 67890 --position top
 
 # Delete a card from a project board
 hubqueue project delete-card owner/repo 12345 54321
+```
+
+## System Management
+
+HubQueue provides tools for managing system and environment settings, checking dependencies, and ensuring compatibility across different platforms.
+
+### System Information
+
+Get information about your system and environment:
+
+```bash
+# Display system information
+hubqueue system info
+
+# Export system information to a file
+hubqueue system info --output system-info.json --format json
+
+# Check dependencies
+hubqueue system check-dependencies
+
+# Install missing dependencies
+hubqueue system check-dependencies --install-missing
+```
+
+### Git Configuration
+
+Manage Git configuration:
+
+```bash
+# Check Git configuration
+hubqueue system git-config
+
+# Set Git configuration
+hubqueue system git-config --set --key user.name --value "Your Name"
+```
+
+### Environment Setup
+
+Set up and manage your environment:
+
+```bash
+# Set up environment for HubQueue
+hubqueue system setup
+
+# Export environment information
+hubqueue system export --output env-info.json
+
+# Check for updates
+hubqueue system check-updates
+
+# Install updates
+hubqueue system check-updates --install
+```
+
+### Windows Compatibility
+
+Check and set up Windows compatibility:
+
+```bash
+# Check Windows compatibility
+hubqueue system windows-compatibility
+
+# Set up Windows environment
+hubqueue system windows-compatibility --setup
 ```
 
 ## Gist Management
