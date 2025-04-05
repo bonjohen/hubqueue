@@ -1303,3 +1303,181 @@ hubqueue system windows-compatibility [OPTIONS]
 
 Options:
 - `--setup`: Setup Windows environment
+
+## SSH Key Management Commands
+
+### `hubqueue ssh`
+
+SSH key management commands.
+
+```
+hubqueue ssh [OPTIONS] COMMAND [ARGS]...
+```
+
+#### `hubqueue ssh list`
+
+List SSH keys.
+
+```
+hubqueue ssh list [OPTIONS]
+```
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+- `--local`: List local SSH keys instead of GitHub keys
+- `--ssh-dir`: SSH directory (default: ~/.ssh)
+- `--format`: Output format (table, simple) (default: simple)
+
+#### `hubqueue ssh generate`
+
+Generate a new SSH key.
+
+```
+hubqueue ssh generate [OPTIONS] NAME
+```
+
+Arguments:
+- `NAME`: Key name
+
+Options:
+- `--passphrase`: Key passphrase
+- `--type`: Key type (rsa, ed25519) (default: rsa)
+- `--bits`: Key bits (for RSA keys, default: 4096)
+- `--ssh-dir`: SSH directory (default: ~/.ssh)
+- `--upload`: Upload key to GitHub after generation
+- `--token`: GitHub API token (required with --upload)
+
+#### `hubqueue ssh upload`
+
+Upload an SSH key to GitHub.
+
+```
+hubqueue ssh upload [OPTIONS] KEY_PATH
+```
+
+Arguments:
+- `KEY_PATH`: Path to public key file
+
+Options:
+- `--title`: Key title (default: filename)
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue ssh delete`
+
+Delete an SSH key from GitHub.
+
+```
+hubqueue ssh delete [OPTIONS] KEY_ID
+```
+
+Arguments:
+- `KEY_ID`: Key ID
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+- `--confirm`: Skip confirmation prompt
+
+#### `hubqueue ssh validate`
+
+Validate an SSH key.
+
+```
+hubqueue ssh validate [OPTIONS] KEY_PATH
+```
+
+Arguments:
+- `KEY_PATH`: Path to key file
+
+## Notification Management Commands
+
+### `hubqueue notification`
+
+Notification management commands.
+
+```
+hubqueue notification [OPTIONS] COMMAND [ARGS]...
+```
+
+#### `hubqueue notification list`
+
+List notifications.
+
+```
+hubqueue notification list [OPTIONS]
+```
+
+Options:
+- `--all`: Show all notifications, including ones marked as read
+- `--participating`: Only show notifications in which the user is directly participating or mentioned
+- `--since`: Only show notifications updated after the given time (ISO 8601 format)
+- `--before`: Only show notifications updated before the given time (ISO 8601 format)
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+- `--format`: Output format (table, simple) (default: simple)
+
+#### `hubqueue notification view`
+
+View detailed information about a notification.
+
+```
+hubqueue notification view [OPTIONS] NOTIFICATION_ID
+```
+
+Arguments:
+- `NOTIFICATION_ID`: Notification ID
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue notification mark-read`
+
+Mark a notification as read.
+
+```
+hubqueue notification mark-read [OPTIONS] NOTIFICATION_ID
+```
+
+Arguments:
+- `NOTIFICATION_ID`: Notification ID
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue notification mark-all-read`
+
+Mark all notifications as read.
+
+```
+hubqueue notification mark-all-read [OPTIONS]
+```
+
+Options:
+- `--repo`: Repository name in format 'owner/repo'
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+- `--confirm`: Skip confirmation prompt
+
+#### `hubqueue notification subscribe`
+
+Subscribe to a notification thread.
+
+```
+hubqueue notification subscribe [OPTIONS] NOTIFICATION_ID
+```
+
+Arguments:
+- `NOTIFICATION_ID`: Notification ID
+
+Options:
+- `--ignore`: Ignore the thread instead of subscribing
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue notification poll`
+
+Poll for new notifications.
+
+```
+hubqueue notification poll [OPTIONS]
+```
+
+Options:
+- `--interval`: Polling interval in seconds (default: 60)
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)

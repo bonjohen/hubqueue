@@ -17,7 +17,9 @@ This guide provides detailed information on how to use HubQueue, a command-line 
 11. [Project Templates](#project-templates)
 12. [Project Management](#project-management)
 13. [System Management](#system-management)
-14. [Logging](#logging)
+14. [SSH Key Management](#ssh-key-management)
+15. [Notifications](#notifications)
+16. [Logging](#logging)
 
 ## Installation
 
@@ -670,6 +672,77 @@ hubqueue system windows-compatibility
 
 # Set up Windows environment
 hubqueue system windows-compatibility --setup
+```
+
+## SSH Key Management
+
+HubQueue provides tools for managing SSH keys, including generating new keys, uploading keys to GitHub, and validating key formats.
+
+### Managing SSH Keys
+
+Manage your SSH keys:
+
+```bash
+# List SSH keys on GitHub
+hubqueue ssh list
+
+# List local SSH keys
+hubqueue ssh list --local
+
+# Generate a new SSH key
+hubqueue ssh generate id_github_rsa --type rsa --bits 4096
+
+# Generate and upload a new SSH key to GitHub
+hubqueue ssh generate id_github_ed25519 --type ed25519 --upload
+
+# Upload an existing SSH key to GitHub
+hubqueue ssh upload ~/.ssh/id_rsa.pub --title "My Work Key"
+
+# Validate an SSH key
+hubqueue ssh validate ~/.ssh/id_rsa
+
+# Delete an SSH key from GitHub
+hubqueue ssh delete 12345
+```
+
+## Notifications
+
+HubQueue provides tools for managing GitHub notifications, including listing, filtering, and marking notifications as read.
+
+### Managing Notifications
+
+Manage your GitHub notifications:
+
+```bash
+# List notifications
+hubqueue notification list
+
+# List all notifications (including read ones)
+hubqueue notification list --all
+
+# List notifications you're participating in
+hubqueue notification list --participating
+
+# View notification details
+hubqueue notification view 12345
+
+# Mark a notification as read
+hubqueue notification mark-read 12345
+
+# Mark all notifications as read
+hubqueue notification mark-all-read
+
+# Mark all notifications for a repository as read
+hubqueue notification mark-all-read --repo owner/repo
+
+# Subscribe to a notification thread
+hubqueue notification subscribe 12345
+
+# Ignore a notification thread
+hubqueue notification subscribe 12345 --ignore
+
+# Poll for new notifications
+hubqueue notification poll --interval 60
 ```
 
 ## Gist Management

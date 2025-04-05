@@ -260,6 +260,38 @@ hubqueue system setup
 hubqueue system check-updates
 ```
 
+### SSH Key Management
+
+```bash
+# List SSH keys on GitHub
+hubqueue ssh list
+
+# Generate a new SSH key
+hubqueue ssh generate id_github_rsa --type rsa
+
+# Upload an SSH key to GitHub
+hubqueue ssh upload ~/.ssh/id_rsa.pub
+
+# Validate an SSH key
+hubqueue ssh validate ~/.ssh/id_rsa
+```
+
+### Notifications
+
+```bash
+# List notifications
+hubqueue notification list
+
+# View notification details
+hubqueue notification view 12345
+
+# Mark a notification as read
+hubqueue notification mark-read 12345
+
+# Poll for new notifications
+hubqueue notification poll
+```
+
 ## Configuration
 
 ```bash

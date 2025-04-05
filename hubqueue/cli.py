@@ -63,6 +63,14 @@ from .system import (
     setup_unix_environment, setup_environment, export_environment,
     check_for_updates, update_hubqueue
 )
+from .ssh import (
+    list_ssh_keys, list_local_ssh_keys, generate_ssh_key,
+    upload_ssh_key, delete_ssh_key, validate_ssh_key
+)
+from .notifications import (
+    list_notifications, mark_notification_as_read, mark_all_notifications_as_read,
+    get_notification_details, subscribe_to_thread, poll_notifications
+)
 from .logging import get_logger, setup_logging
 
 # Get logger
@@ -2713,6 +2721,510 @@ def windows_compatibility(setup):
                 click.echo("Windows environment setup failed")
     except Exception as e:
         logger.error(f"Error checking Windows compatibility: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+# SSH key management commands group
+@main.group()
+def ssh():
+    """SSH key management commands."""
+    pass
+
+
+@ssh.command("list")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+@click.option("--local", is_flag=True, help="List local SSH keys instead of GitHub keys")
+@click.option("--ssh-dir", help="SSH directory (default: ~/.ssh)")
+@click.option("--format", type=click.Choice(["table", "simple"]), default="simple",
+              help="Output format (default: simple)")
+def list_ssh_keys_cmd(token, local, ssh_dir, format):
+    """List SSH keys."""
+    logger.debug("Listing SSH keys")
+    try:
+        if local:
+            # List local SSH keys
+            keys = list_local_ssh_keys(ssh_dir)
+
+            if not keys:
+                logger.info("No local SSH keys found")
+                click.echo("No local SSH keys found")
+                return
+
+            # Display keys
+            if format == "table":
+                headers = ["File", "Type", "Key Type", "Fingerprint", "Size"]
+                table_data = [
+                    [
+                        key["file"],
+                        key["type"],
+                        key["key_type"] or "",
+                        key["fingerprint"] or "",
+                        key["size"],
+                    ] for key in keys
+                ]
+
+                click.echo("Local SSH keys:")
+                click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
+            else:
+                # Simple format
+                click.echo("Local SSH keys:")
+                for key in keys:
+                    fingerprint = f" ({key['fingerprint']})" if key["fingerprint"] else ""
+                    click.echo(f"{key['file']} - {key['type']}{fingerprint}")
+        else:
+            # List GitHub SSH keys
+            token = token or get_github_token()
+            if not token:
+                logger.error("GitHub token not provided")
+                click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+                return
+
+            keys = list_ssh_keys(token)
+
+            if not keys:
+                logger.info("No SSH keys found on GitHub")
+                click.echo("No SSH keys found on GitHub")
+                return
+
+            # Display keys
+            if format == "table":
+                headers = ["ID", "Title", "Key", "Created"]
+                table_data = [
+                    [
+                        key["id"],
+                        key["title"],
+                        key["key"][:30] + "...",
+                        key["created_at"],
+                    ] for key in keys
+                ]
+
+                click.echo("GitHub SSH keys:")
+                click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
+            else:
+                # Simple format
+                click.echo("GitHub SSH keys:")
+                for key in keys:
+                    click.echo(f"{key['id']}: {key['title']} (created: {key['created_at']})")
+    except Exception as e:
+        logger.error(f"Error listing SSH keys: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@ssh.command("generate")
+@click.argument("name")
+@click.option("--passphrase", help="Key passphrase")
+@click.option("--type", "key_type", type=click.Choice(["rsa", "ed25519"]), default="rsa",
+              help="Key type (default: rsa)")
+@click.option("--bits", type=int, default=4096, help="Key bits (for RSA keys, default: 4096)")
+@click.option("--ssh-dir", help="SSH directory (default: ~/.ssh)")
+@click.option("--upload", is_flag=True, help="Upload key to GitHub after generation")
+@click.option("--token", help="GitHub API token (required with --upload)")
+def generate_ssh_key_cmd(name, passphrase, key_type, bits, ssh_dir, upload, token):
+    """Generate a new SSH key."""
+    logger.debug(f"Generating SSH key: {name}")
+    try:
+        # Generate SSH key
+        key = generate_ssh_key(name, passphrase, key_type, bits, ssh_dir)
+
+        logger.info(f"Generated SSH key: {key['name']}")
+        click.echo(f"Generated SSH key: {key['name']}")
+        click.echo(f"Type: {key['type']}")
+        click.echo(f"Bits: {key['bits']}")
+        click.echo(f"Fingerprint: {key['fingerprint']}")
+        click.echo(f"Private key: {key['private_key_file']}")
+        click.echo(f"Public key: {key['public_key_file']}")
+
+        # Upload key to GitHub if requested
+        if upload:
+            token = token or get_github_token()
+            if not token:
+                logger.error("GitHub token not provided")
+                click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+                return
+
+            # Upload key
+            uploaded_key = upload_ssh_key(name, key["public_key_file"], None, token)
+
+            logger.info(f"Uploaded SSH key to GitHub: {uploaded_key['id']}")
+            click.echo(f"\nUploaded SSH key to GitHub:")
+            click.echo(f"ID: {uploaded_key['id']}")
+            click.echo(f"Title: {uploaded_key['title']}")
+            click.echo(f"Created: {uploaded_key['created_at']}")
+    except Exception as e:
+        logger.error(f"Error generating SSH key: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@ssh.command("upload")
+@click.argument("key_path")
+@click.option("--title", help="Key title (default: filename)")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def upload_ssh_key_cmd(key_path, title, token):
+    """Upload an SSH key to GitHub."""
+    logger.debug(f"Uploading SSH key: {key_path}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Validate key path
+        if not os.path.isfile(key_path):
+            logger.error(f"SSH key file not found: {key_path}")
+            click.echo(f"Error: SSH key file not found: {key_path}")
+            return
+
+        # Use filename as title if not provided
+        if not title:
+            title = os.path.basename(key_path)
+
+        # Upload key
+        key = upload_ssh_key(title, key_path, None, token)
+
+        logger.info(f"Uploaded SSH key: {key['id']}")
+        click.echo(f"Uploaded SSH key:")
+        click.echo(f"ID: {key['id']}")
+        click.echo(f"Title: {key['title']}")
+        click.echo(f"Created: {key['created_at']}")
+    except Exception as e:
+        logger.error(f"Error uploading SSH key: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@ssh.command("delete")
+@click.argument("key_id", type=int)
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+@click.option("--confirm", is_flag=True, help="Skip confirmation prompt")
+def delete_ssh_key_cmd(key_id, token, confirm):
+    """Delete an SSH key from GitHub."""
+    logger.debug(f"Deleting SSH key: {key_id}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Confirm deletion
+        if not confirm:
+            if not click.confirm(f"Are you sure you want to delete SSH key {key_id}?"):
+                click.echo("Deletion cancelled.")
+                return
+
+        # Delete key
+        result = delete_ssh_key(key_id, token)
+
+        if result:
+            logger.info(f"Deleted SSH key: {key_id}")
+            click.echo(f"Deleted SSH key: {key_id}")
+        else:
+            logger.warning(f"Failed to delete SSH key: {key_id}")
+            click.echo(f"Failed to delete SSH key: {key_id}")
+    except Exception as e:
+        logger.error(f"Error deleting SSH key: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@ssh.command("validate")
+@click.argument("key_path")
+def validate_ssh_key_cmd(key_path):
+    """Validate an SSH key."""
+    logger.debug(f"Validating SSH key: {key_path}")
+    try:
+        # Validate key
+        result = validate_ssh_key(key_path)
+
+        if result["valid"]:
+            logger.info(f"SSH key is valid: {key_path}")
+            click.echo(f"SSH key is valid: {key_path}")
+
+            if "warning" in result:
+                click.echo(f"Warning: {result['warning']}")
+
+            if "bits" in result:
+                click.echo(f"Bits: {result['bits']}")
+
+            if "fingerprint" in result:
+                click.echo(f"Fingerprint: {result['fingerprint']}")
+
+            if "type" in result:
+                click.echo(f"Type: {result['type']}")
+
+            if "comment" in result:
+                click.echo(f"Comment: {result['comment']}")
+        else:
+            logger.error(f"SSH key is invalid: {key_path}")
+            click.echo(f"SSH key is invalid: {key_path}")
+            click.echo(f"Error: {result['error']}")
+    except Exception as e:
+        logger.error(f"Error validating SSH key: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+# Notifications commands group
+@main.group()
+def notification():
+    """Notification management commands."""
+    pass
+
+
+@notification.command("list")
+@click.option("--all", is_flag=True, help="Show all notifications, including ones marked as read")
+@click.option("--participating", is_flag=True, help="Only show notifications in which the user is directly participating or mentioned")
+@click.option("--since", help="Only show notifications updated after the given time (ISO 8601 format)")
+@click.option("--before", help="Only show notifications updated before the given time (ISO 8601 format)")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+@click.option("--format", type=click.Choice(["table", "simple"]), default="simple",
+              help="Output format (default: simple)")
+def list_notifications_cmd(all, participating, since, before, token, format):
+    """List notifications."""
+    logger.debug("Listing notifications")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # List notifications
+        notifications = list_notifications(all, participating, since, before, token)
+
+        if not notifications:
+            logger.info("No notifications found")
+            click.echo("No notifications found")
+            return
+
+        # Display notifications
+        if format == "table":
+            headers = ["ID", "Subject", "Type", "Reason", "Repository", "Updated"]
+            table_data = [
+                [
+                    notification["id"],
+                    notification["subject"]["title"][:30] + "..." if len(notification["subject"]["title"]) > 30 else notification["subject"]["title"],
+                    notification["subject"]["type"],
+                    notification["reason"],
+                    notification["repository"]["name"],
+                    notification["updated_at"],
+                ] for notification in notifications
+            ]
+
+            click.echo(f"Notifications:")
+            click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
+        else:
+            # Simple format
+            click.echo(f"Notifications:")
+            for notification in notifications:
+                unread = "*" if notification["unread"] else " "
+                click.echo(f"{unread} {notification['id']}: {notification['subject']['title']} ({notification['subject']['type']}) - {notification['repository']['name']}")
+    except Exception as e:
+        logger.error(f"Error listing notifications: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@notification.command("view")
+@click.argument("notification_id")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def view_notification(notification_id, token):
+    """View detailed information about a notification."""
+    logger.debug(f"Viewing notification: {notification_id}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Get notification details
+        notification = get_notification_details(notification_id, token)
+
+        if not notification:
+            logger.error(f"Notification not found: {notification_id}")
+            click.echo(f"Error: Notification not found: {notification_id}")
+            return
+
+        # Display notification details
+        click.echo(f"Notification: {notification_id}")
+        click.echo(f"Subject: {notification['subject']['title']}")
+        click.echo(f"Type: {notification['subject']['type']}")
+        click.echo(f"Reason: {notification['reason']}")
+        click.echo(f"Repository: {notification['repository']['name']}")
+        click.echo(f"Updated: {notification['updated_at']}")
+        click.echo(f"Unread: {'Yes' if notification['unread'] else 'No'}")
+
+        # Display subscription details
+        if notification["subscription"]["subscribed"] is not None:
+            click.echo(f"\nSubscription:")
+            click.echo(f"Subscribed: {'Yes' if notification['subscription']['subscribed'] else 'No'}")
+            click.echo(f"Ignored: {'Yes' if notification['subscription']['ignored'] else 'No'}")
+            if notification["subscription"]["reason"]:
+                click.echo(f"Reason: {notification['subscription']['reason']}")
+
+        # Display subject content
+        if notification["subject"]["content"]:
+            content = notification["subject"]["content"]
+            click.echo(f"\nContent:")
+
+            if notification["subject"]["type"] == "Issue":
+                click.echo(f"Issue #{content['number']}: {content['title']}")
+                click.echo(f"State: {content['state']}")
+                click.echo(f"Created: {content['created_at']}")
+                click.echo(f"Updated: {content['updated_at']}")
+                if content["closed_at"]:
+                    click.echo(f"Closed: {content['closed_at']}")
+                click.echo(f"User: {content['user']['login']}")
+                if content["labels"]:
+                    click.echo(f"Labels: {', '.join(content['labels'])}")
+                click.echo(f"Comments: {content['comments']}")
+                click.echo(f"\nBody:\n{content['body']}")
+            elif notification["subject"]["type"] == "PullRequest":
+                click.echo(f"Pull Request #{content['number']}: {content['title']}")
+                click.echo(f"State: {content['state']}")
+                click.echo(f"Created: {content['created_at']}")
+                click.echo(f"Updated: {content['updated_at']}")
+                if content["closed_at"]:
+                    click.echo(f"Closed: {content['closed_at']}")
+                if content["merged_at"]:
+                    click.echo(f"Merged: {content['merged_at']}")
+                click.echo(f"User: {content['user']['login']}")
+                if content["labels"]:
+                    click.echo(f"Labels: {', '.join(content['labels'])}")
+                click.echo(f"Comments: {content['comments']}")
+                click.echo(f"Changes: +{content['additions']} -{content['deletions']} ({content['changed_files']} files)")
+                click.echo(f"\nBody:\n{content['body']}")
+            elif notification["subject"]["type"] == "Release":
+                click.echo(f"Release: {content['name']} ({content['tag_name']})")
+                click.echo(f"Created: {content['created_at']}")
+                click.echo(f"Published: {content['published_at']}")
+                click.echo(f"Author: {content['author']['login']}")
+                click.echo(f"Draft: {'Yes' if content['draft'] else 'No'}")
+                click.echo(f"Prerelease: {'Yes' if content['prerelease'] else 'No'}")
+                click.echo(f"\nBody:\n{content['body']}")
+    except Exception as e:
+        logger.error(f"Error viewing notification: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@notification.command("mark-read")
+@click.argument("notification_id")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def mark_notification_as_read_cmd(notification_id, token):
+    """Mark a notification as read."""
+    logger.debug(f"Marking notification as read: {notification_id}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Mark notification as read
+        result = mark_notification_as_read(notification_id, token)
+
+        if result:
+            logger.info(f"Marked notification as read: {notification_id}")
+            click.echo(f"Marked notification as read: {notification_id}")
+        else:
+            logger.warning(f"Failed to mark notification as read: {notification_id}")
+            click.echo(f"Failed to mark notification as read: {notification_id}")
+    except Exception as e:
+        logger.error(f"Error marking notification as read: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@notification.command("mark-all-read")
+@click.option("--repo", help="Repository name in format 'owner/repo'")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+@click.option("--confirm", is_flag=True, help="Skip confirmation prompt")
+def mark_all_notifications_as_read_cmd(repo, token, confirm):
+    """Mark all notifications as read."""
+    logger.debug(f"Marking all notifications as read{f' for {repo}' if repo else ''}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Confirm marking all as read
+        if not confirm:
+            if not click.confirm(f"Are you sure you want to mark all notifications as read{f' for {repo}' if repo else ''}?"):
+                click.echo("Operation cancelled.")
+                return
+
+        # Mark all notifications as read
+        result = mark_all_notifications_as_read(repo, token)
+
+        if result:
+            logger.info(f"Marked all notifications as read{f' for {repo}' if repo else ''}")
+            click.echo(f"Marked all notifications as read{f' for {repo}' if repo else ''}")
+        else:
+            logger.warning(f"Failed to mark all notifications as read{f' for {repo}' if repo else ''}")
+            click.echo(f"Failed to mark all notifications as read{f' for {repo}' if repo else ''}")
+    except Exception as e:
+        logger.error(f"Error marking all notifications as read: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@notification.command("subscribe")
+@click.argument("notification_id")
+@click.option("--ignore", is_flag=True, help="Ignore the thread instead of subscribing")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def subscribe_to_thread_cmd(notification_id, ignore, token):
+    """Subscribe to a notification thread."""
+    logger.debug(f"Subscribing to thread: {notification_id}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Subscribe to thread
+        subscription = subscribe_to_thread(notification_id, not ignore, ignore, token)
+
+        if subscription:
+            logger.info(f"Subscribed to thread: {notification_id}")
+            click.echo(f"Subscribed to thread: {notification_id}")
+            click.echo(f"Subscribed: {'No' if ignore else 'Yes'}")
+            click.echo(f"Ignored: {'Yes' if ignore else 'No'}")
+            if subscription["reason"]:
+                click.echo(f"Reason: {subscription['reason']}")
+            click.echo(f"Created: {subscription['created_at']}")
+        else:
+            logger.warning(f"Failed to subscribe to thread: {notification_id}")
+            click.echo(f"Failed to subscribe to thread: {notification_id}")
+    except Exception as e:
+        logger.error(f"Error subscribing to thread: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@notification.command("poll")
+@click.option("--interval", type=int, default=60, help="Polling interval in seconds (default: 60)")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def poll_notifications_cmd(interval, token):
+    """Poll for new notifications."""
+    logger.debug(f"Polling for notifications (interval: {interval}s)")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Define callback function
+        def notification_callback(notifications):
+            click.echo(f"\nFound {len(notifications)} new notifications:")
+            for notification in notifications:
+                click.echo(f"- {notification['subject']['title']} ({notification['subject']['type']}) - {notification['repository']['name']}")
+
+        # Start polling
+        click.echo(f"Polling for notifications every {interval} seconds. Press Ctrl+C to stop.")
+        poll_notifications(interval, notification_callback, token)
+    except KeyboardInterrupt:
+        click.echo("\nPolling stopped.")
+    except Exception as e:
+        logger.error(f"Error polling for notifications: {str(e)}")
         click.echo(f"Error: {str(e)}")
 
 
