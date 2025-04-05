@@ -871,3 +871,135 @@ Options:
 - `--description`: Gist description
 - `--public/--private`: Whether the gist is public (default: private)
 - `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+## Project Templates Commands
+
+### `hubqueue template`
+
+Project templates and scaffolding commands.
+
+```
+hubqueue template [OPTIONS] COMMAND [ARGS]...
+```
+
+#### `hubqueue template list`
+
+List available project templates.
+
+```
+hubqueue template list [OPTIONS]
+```
+
+Options:
+- `--templates-dir`: Directory containing templates
+- `--format`: Output format (table, simple) (default: simple)
+
+#### `hubqueue template view`
+
+View detailed information about a template.
+
+```
+hubqueue template view [OPTIONS] TEMPLATE_NAME
+```
+
+Arguments:
+- `TEMPLATE_NAME`: Template name
+
+Options:
+- `--templates-dir`: Directory containing templates
+- `--show-variables`: Show template variables
+
+#### `hubqueue template create`
+
+Create a new template from a directory.
+
+```
+hubqueue template create [OPTIONS] NAME SOURCE_DIR
+```
+
+Arguments:
+- `NAME`: Template name
+- `SOURCE_DIR`: Source directory containing template files
+
+Options:
+- `--description`: Template description
+- `--version`: Template version (default: 1.0.0)
+- `--templates-dir`: Directory to save template to
+
+#### `hubqueue template delete`
+
+Delete a template.
+
+```
+hubqueue template delete [OPTIONS] TEMPLATE_NAME
+```
+
+Arguments:
+- `TEMPLATE_NAME`: Template name
+
+Options:
+- `--templates-dir`: Directory containing templates
+- `--confirm`: Skip confirmation prompt
+
+#### `hubqueue template import-github`
+
+Import a template from a GitHub repository.
+
+```
+hubqueue template import-github [OPTIONS] REPO_NAME
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+
+Options:
+- `--path`: Path within repository to use as template
+- `--name`: Template name (default: repository name)
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+- `--templates-dir`: Directory to save template to
+
+#### `hubqueue template import-url`
+
+Import a template from a URL.
+
+```
+hubqueue template import-url [OPTIONS] URL NAME
+```
+
+Arguments:
+- `URL`: URL to zip file containing template
+- `NAME`: Template name
+
+Options:
+- `--description`: Template description
+- `--templates-dir`: Directory to save template to
+
+#### `hubqueue template generate`
+
+Generate a project from a template.
+
+```
+hubqueue template generate [OPTIONS] TEMPLATE_NAME OUTPUT_DIR
+```
+
+Arguments:
+- `TEMPLATE_NAME`: Template name
+- `OUTPUT_DIR`: Output directory
+
+Options:
+- `--var`: Template variable in format 'name=value' (can be specified multiple times)
+- `--templates-dir`: Directory containing templates
+
+#### `hubqueue template variables`
+
+List variables for a template.
+
+```
+hubqueue template variables [OPTIONS] TEMPLATE_NAME
+```
+
+Arguments:
+- `TEMPLATE_NAME`: Template name
+
+Options:
+- `--templates-dir`: Directory containing templates

@@ -43,6 +43,11 @@ from .gist import (
     star_gist, unstar_gist, is_gist_starred, add_gist_comment,
     delete_gist_comment, fork_gist, download_gist, upload_gist
 )
+from .templates import (
+    list_templates, get_template, create_template, delete_template,
+    import_template_from_github, import_template_from_url,
+    generate_project, list_template_variables
+)
 from .logging import get_logger, setup_logging
 
 # Get logger
@@ -1772,6 +1777,280 @@ def upload_gist_cmd(files_or_directory, description, public, token):
         click.echo(f"Files: {', '.join(list(gist_info['files'].keys()))}")
     except Exception as e:
         logger.error(f"Error uploading files to gist: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+# Project templates and scaffolding commands group
+@main.group()
+def template():
+    """Project templates and scaffolding commands."""
+    pass
+
+
+@template.command("list")
+@click.option("--templates-dir", help="Directory containing templates")
+@click.option("--format", type=click.Choice(["table", "simple"]), default="simple",
+              help="Output format (default: simple)")
+def list_templates_cmd(templates_dir, format):
+    """List available project templates."""
+    logger.debug(f"Listing templates from {templates_dir or 'default directory'}")
+    try:
+        # List templates
+        templates = list_templates(templates_dir)
+
+        if not templates:
+            logger.info(f"No templates found")
+            click.echo(f"No templates found")
+            return
+
+        # Display templates
+        if format == "table":
+            headers = ["Name", "Description", "Version", "Directory"]
+            table_data = [
+                [
+                    template["name"],
+                    template["description"],
+                    template.get("version", "unknown"),
+                    template["directory"],
+                ] for template in templates
+            ]
+
+            click.echo(f"Available templates:")
+            click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
+        else:
+            # Simple format
+            click.echo(f"Available templates:")
+            for template in templates:
+                click.echo(f"{template['name']} - {template['description']}")
+    except Exception as e:
+        logger.error(f"Error listing templates: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@template.command("view")
+@click.argument("template_name")
+@click.option("--templates-dir", help="Directory containing templates")
+@click.option("--show-variables", is_flag=True, help="Show template variables")
+def view_template(template_name, templates_dir, show_variables):
+    """View detailed information about a template."""
+    logger.debug(f"Viewing template {template_name}")
+    try:
+        # Get template
+        template = get_template(template_name, templates_dir)
+
+        if not template:
+            logger.error(f"Template {template_name} not found")
+            click.echo(f"Error: Template {template_name} not found")
+            return
+
+        # Display template information
+        click.echo(f"Template: {template['name']}")
+        click.echo(f"Description: {template['description']}")
+        click.echo(f"Version: {template.get('version', 'unknown')}")
+        click.echo(f"Directory: {template['directory']}")
+
+        # Show variables if requested
+        if show_variables:
+            variables = list_template_variables(template_name, templates_dir)
+
+            if variables:
+                click.echo("\nVariables:")
+                for name, info in variables.items():
+                    if isinstance(info, dict):
+                        description = info.get("description", "")
+                        default = info.get("default", "None")
+                        click.echo(f"  {name}: {description} (default: {default})")
+                    else:
+                        click.echo(f"  {name}: {info}")
+            else:
+                click.echo("\nNo variables defined for this template.")
+    except Exception as e:
+        logger.error(f"Error viewing template: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@template.command("create")
+@click.argument("name")
+@click.argument("source_dir")
+@click.option("--description", help="Template description")
+@click.option("--version", default="1.0.0", help="Template version (default: 1.0.0)")
+@click.option("--templates-dir", help="Directory to save template to")
+def create_template_cmd(name, source_dir, description, version, templates_dir):
+    """Create a new template from a directory."""
+    logger.debug(f"Creating template {name} from {source_dir}")
+    try:
+        # Validate source directory
+        if not os.path.isdir(source_dir):
+            logger.error(f"Source directory {source_dir} does not exist")
+            click.echo(f"Error: Source directory {source_dir} does not exist")
+            return
+
+        # Create template
+        template = create_template(
+            source_dir,
+            name,
+            description or f"Template created from {source_dir}",
+            version,
+            None,
+            templates_dir
+        )
+
+        logger.info(f"Created template {name}")
+        click.echo(f"Created template: {template['name']}")
+        click.echo(f"Description: {template['description']}")
+        click.echo(f"Version: {template['version']}")
+        click.echo(f"Directory: {template['directory']}")
+    except Exception as e:
+        logger.error(f"Error creating template: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@template.command("delete")
+@click.argument("template_name")
+@click.option("--templates-dir", help="Directory containing templates")
+@click.option("--confirm", is_flag=True, help="Skip confirmation prompt")
+def delete_template_cmd(template_name, templates_dir, confirm):
+    """Delete a template."""
+    logger.debug(f"Deleting template {template_name}")
+    try:
+        # Confirm deletion
+        if not confirm:
+            if not click.confirm(f"Are you sure you want to delete template {template_name}?"):
+                click.echo("Deletion cancelled.")
+                return
+
+        # Delete template
+        result = delete_template(template_name, templates_dir)
+
+        if result:
+            logger.info(f"Deleted template {template_name}")
+            click.echo(f"Deleted template {template_name}")
+        else:
+            logger.warning(f"Failed to delete template {template_name}")
+            click.echo(f"Failed to delete template {template_name}")
+    except Exception as e:
+        logger.error(f"Error deleting template: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@template.command("import-github")
+@click.argument("repo_name")
+@click.option("--path", help="Path within repository to use as template")
+@click.option("--name", help="Template name (default: repository name)")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+@click.option("--templates-dir", help="Directory to save template to")
+def import_template_from_github_cmd(repo_name, path, name, token, templates_dir):
+    """Import a template from a GitHub repository."""
+    logger.debug(f"Importing template from GitHub repository {repo_name}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Import template
+        template = import_template_from_github(
+            repo_name,
+            path,
+            name,
+            token,
+            templates_dir
+        )
+
+        logger.info(f"Imported template {template['name']} from {repo_name}")
+        click.echo(f"Imported template: {template['name']}")
+        click.echo(f"Description: {template['description']}")
+        click.echo(f"Version: {template['version']}")
+        click.echo(f"Directory: {template['directory']}")
+    except Exception as e:
+        logger.error(f"Error importing template from GitHub: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@template.command("import-url")
+@click.argument("url")
+@click.argument("name")
+@click.option("--description", help="Template description")
+@click.option("--templates-dir", help="Directory to save template to")
+def import_template_from_url_cmd(url, name, description, templates_dir):
+    """Import a template from a URL."""
+    logger.debug(f"Importing template from URL {url}")
+    try:
+        # Import template
+        template = import_template_from_url(
+            url,
+            name,
+            description,
+            templates_dir
+        )
+
+        logger.info(f"Imported template {template['name']} from {url}")
+        click.echo(f"Imported template: {template['name']}")
+        click.echo(f"Description: {template['description']}")
+        click.echo(f"Version: {template['version']}")
+        click.echo(f"Directory: {template['directory']}")
+    except Exception as e:
+        logger.error(f"Error importing template from URL: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@template.command("generate")
+@click.argument("template_name")
+@click.argument("output_dir")
+@click.option("--var", "variables", multiple=True, help="Template variable in format 'name=value' (can be specified multiple times)")
+@click.option("--templates-dir", help="Directory containing templates")
+def generate_project_cmd(template_name, output_dir, variables, templates_dir):
+    """Generate a project from a template."""
+    logger.debug(f"Generating project from template {template_name} in {output_dir}")
+    try:
+        # Parse variables
+        vars_dict = {}
+        for var in variables:
+            if "=" in var:
+                name, value = var.split("=", 1)
+                vars_dict[name] = value
+            else:
+                logger.warning(f"Invalid variable format: {var}")
+                click.echo(f"Warning: Invalid variable format: {var}. Use 'name=value'.")
+
+        # Generate project
+        output = generate_project(template_name, output_dir, vars_dict, templates_dir)
+
+        logger.info(f"Generated project from template {template_name} in {output}")
+        click.echo(f"Generated project from template {template_name} in {output}")
+    except Exception as e:
+        logger.error(f"Error generating project from template: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@template.command("variables")
+@click.argument("template_name")
+@click.option("--templates-dir", help="Directory containing templates")
+def list_template_variables_cmd(template_name, templates_dir):
+    """List variables for a template."""
+    logger.debug(f"Listing variables for template {template_name}")
+    try:
+        # Get template variables
+        variables = list_template_variables(template_name, templates_dir)
+
+        if not variables:
+            logger.info(f"No variables defined for template {template_name}")
+            click.echo(f"No variables defined for template {template_name}")
+            return
+
+        # Display variables
+        click.echo(f"Variables for template {template_name}:")
+        for name, info in variables.items():
+            if isinstance(info, dict):
+                description = info.get("description", "")
+                default = info.get("default", "None")
+                required = "Required" if info.get("required", False) else "Optional"
+                click.echo(f"  {name}: {description} (default: {default}, {required})")
+            else:
+                click.echo(f"  {name}: {info}")
+    except Exception as e:
+        logger.error(f"Error listing template variables: {str(e)}")
         click.echo(f"Error: {str(e)}")
 
 

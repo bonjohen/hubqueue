@@ -206,6 +206,22 @@ hubqueue gist update abc123 --file updated_script.py
 hubqueue gist download abc123 --directory gists/
 ```
 
+### Project Templates
+
+```bash
+# List available templates
+hubqueue template list
+
+# Create a new template
+hubqueue template create my-template ./my-project --description "My project template"
+
+# Import a template from GitHub
+hubqueue template import-github username/template-repo
+
+# Generate a project from a template
+hubqueue template generate my-template ./new-project --var project_name=awesome-app
+```
+
 ## Configuration
 
 ```bash

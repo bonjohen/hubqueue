@@ -14,7 +14,8 @@ This guide provides detailed information on how to use HubQueue, a command-line 
 8. [Release Management](#release-management)
 9. [Workflow Automation](#workflow-automation)
 10. [Gist Management](#gist-management)
-11. [Logging](#logging)
+11. [Project Templates](#project-templates)
+12. [Logging](#logging)
 
 ## Installation
 
@@ -510,6 +511,51 @@ hubqueue workflow delete-cache owner/repo --id 12345
 # Delete a cache by key
 hubqueue workflow delete-cache owner/repo --key npm-cache
 ```
+
+## Project Templates
+
+HubQueue provides tools for managing project templates and scaffolding new projects from templates.
+
+### Template Management
+
+Manage project templates:
+
+```bash
+# List available templates
+hubqueue template list
+
+# View template details
+hubqueue template view my-template --show-variables
+
+# Create a new template from a directory
+hubqueue template create web-app ./my-web-app --description "Web application template"
+
+# Import a template from GitHub
+hubqueue template import-github username/template-repo --name my-template
+
+# Import a template from a URL
+hubqueue template import-url https://example.com/template.zip my-template
+
+# Delete a template
+hubqueue template delete my-template
+```
+
+### Project Generation
+
+Generate projects from templates:
+
+```bash
+# Generate a project from a template
+hubqueue template generate my-template ./new-project
+
+# Generate a project with custom variables
+hubqueue template generate my-template ./new-project --var project_name=awesome-app --var author="Jane Smith"
+
+# List template variables
+hubqueue template variables my-template
+```
+
+Templates support Jinja2 templating for both file content and filenames, allowing for dynamic project generation based on provided variables.
 
 ## Gist Management
 
