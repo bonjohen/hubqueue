@@ -71,6 +71,19 @@ from .notifications import (
     list_notifications, mark_notification_as_read, mark_all_notifications_as_read,
     get_notification_details, subscribe_to_thread, poll_notifications
 )
+from .ui import (
+    Color, print_color, print_header, print_info, print_success,
+    print_warning, print_error, print_debug, print_table, print_json,
+    print_progress_bar, print_spinner, prompt, confirm, select,
+    multi_select, password, pause, clear_screen, set_color,
+    set_interactive, is_interactive, is_color_enabled
+)
+from .wizard import (
+    run_repository_wizard, run_issue_wizard, run_release_wizard
+)
+from .forms import (
+    create_repository_form, create_issue_form, render_form
+)
 from .logging import get_logger, setup_logging
 
 # Get logger
@@ -3226,6 +3239,414 @@ def poll_notifications_cmd(interval, token):
     except Exception as e:
         logger.error(f"Error polling for notifications: {str(e)}")
         click.echo(f"Error: {str(e)}")
+
+
+# Wizard commands group
+@main.group()
+def wizard():
+    """Interactive wizards for common tasks."""
+    pass
+
+
+@wizard.command("repository")
+def wizard_repository():
+    """Run the repository creation wizard."""
+    logger.debug("Running repository creation wizard")
+    try:
+        # Run wizard
+        data = run_repository_wizard()
+
+        if data and not data.get("cancelled"):
+            # Create repository
+            if confirm("Do you want to create the repository now?", default=True):
+                # Get repository name
+                repo_name = f"{data['owner']}/{data['name']}"
+
+                # Create repository
+                from .repository import create_repository
+
+                # Get token
+                token = get_github_token()
+                if not token:
+                    print_error("GitHub token not provided. Use GITHUB_TOKEN environment variable.")
+                    return
+
+                # Create repository
+                repo = create_repository(
+                    repo_name,
+                    description=data["description"],
+                    private=(data["visibility"] == "private"),
+                    token=token
+                )
+
+                if repo:
+                    print_success(f"Repository created: {repo['html_url']}")
+
+                    # Create README
+                    if data.get("create_readme"):
+                        from .repository import generate_readme
+
+                        print_info("Creating README.md...")
+                        readme = generate_readme(
+                            repo_name,
+                            data["name"],
+                            data["description"],
+                            template=data.get("readme_template", "standard"),
+                            token=token
+                        )
+
+                        if readme:
+                            print_success("README.md created.")
+
+                    # Create .gitignore
+                    if data.get("create_gitignore") and data.get("gitignore_template"):
+                        from .repository import generate_gitignore
+
+                        print_info("Creating .gitignore...")
+                        gitignore = generate_gitignore(
+                            repo_name,
+                            data["gitignore_template"],
+                            token=token
+                        )
+
+                        if gitignore:
+                            print_success(".gitignore created.")
+
+                    # Create LICENSE
+                    if data.get("create_license") and data.get("license_template"):
+                        from .repository import generate_license
+
+                        print_info("Creating LICENSE...")
+                        license = generate_license(
+                            repo_name,
+                            data["license_template"],
+                            token=token
+                        )
+
+                        if license:
+                            print_success("LICENSE created.")
+
+                    # Add collaborators
+                    if data.get("collaborators"):
+                        from .repository import manage_collaborators
+
+                        print_info("Adding collaborators...")
+                        for collaborator in data["collaborators"]:
+                            result = manage_collaborators(
+                                repo_name,
+                                collaborator["username"],
+                                "add",
+                                permission=collaborator["permission"],
+                                token=token
+                            )
+
+                            if result:
+                                print_success(f"Added collaborator: {collaborator['username']} ({collaborator['permission']})")
+
+                    print_success(f"Repository setup completed: {repo['html_url']}")
+
+                    # Open repository in browser
+                    if confirm("Open repository in browser?", default=True):
+                        import webbrowser
+                        webbrowser.open(repo["html_url"])
+    except Exception as e:
+        logger.error(f"Error running repository creation wizard: {str(e)}")
+        print_error(f"Error: {str(e)}")
+
+
+@wizard.command("issue")
+@click.option("--repo", help="Repository name in format 'owner/repo'")
+def wizard_issue(repo):
+    """Run the issue creation wizard."""
+    logger.debug("Running issue creation wizard")
+    try:
+        # Run wizard
+        data = run_issue_wizard(repo)
+
+        if data and not data.get("cancelled"):
+            # Create issue
+            if confirm("Do you want to create the issue now?", default=True):
+                # Get repository name
+                repo_name = data["repo_name"]
+
+                # Create issue
+                from .issues import create_issue
+
+                # Get token
+                token = get_github_token()
+                if not token:
+                    print_error("GitHub token not provided. Use GITHUB_TOKEN environment variable.")
+                    return
+
+                # Create issue
+                issue = create_issue(
+                    repo_name,
+                    data["title"],
+                    data["description"],
+                    labels=data["labels"],
+                    assignees=data["assignees"],
+                    token=token
+                )
+
+                if issue:
+                    print_success(f"Issue created: {issue['html_url']}")
+
+                    # Open issue in browser
+                    if confirm("Open issue in browser?", default=True):
+                        import webbrowser
+                        webbrowser.open(issue["html_url"])
+    except Exception as e:
+        logger.error(f"Error running issue creation wizard: {str(e)}")
+        print_error(f"Error: {str(e)}")
+
+
+@wizard.command("release")
+@click.option("--repo", help="Repository name in format 'owner/repo'")
+def wizard_release(repo):
+    """Run the release creation wizard."""
+    logger.debug("Running release creation wizard")
+    try:
+        # Run wizard
+        data = run_release_wizard(repo)
+
+        if data and not data.get("cancelled"):
+            # Create release
+            if confirm("Do you want to create the release now?", default=True):
+                # Get repository name
+                repo_name = data["repo_name"]
+
+                # Create release
+                from .release import create_github_release
+
+                # Get token
+                token = get_github_token()
+                if not token:
+                    print_error("GitHub token not provided. Use GITHUB_TOKEN environment variable.")
+                    return
+
+                # Determine release parameters
+                is_draft = data["type"] == "Draft"
+                is_prerelease = data["type"] == "Pre-release"
+
+                # Create release
+                release = create_github_release(
+                    repo_name,
+                    data["tag"],
+                    data["title"],
+                    data["notes"] if not data["generate_notes"] else None,
+                    target=data["target"],
+                    draft=is_draft,
+                    prerelease=is_prerelease,
+                    generate_notes=data["generate_notes"],
+                    token=token
+                )
+
+                if release:
+                    print_success(f"Release created: {release['html_url']}")
+
+                    # Upload assets
+                    if data.get("assets"):
+                        from .release import upload_release_asset
+
+                        print_info("Uploading assets...")
+                        for asset in data["assets"]:
+                            result = upload_release_asset(
+                                repo_name,
+                                release["id"],
+                                asset["path"],
+                                label=asset["label"],
+                                token=token
+                            )
+
+                            if result:
+                                print_success(f"Uploaded asset: {asset['path']}")
+
+                    # Open release in browser
+                    if confirm("Open release in browser?", default=True):
+                        import webbrowser
+                        webbrowser.open(release["html_url"])
+    except Exception as e:
+        logger.error(f"Error running release creation wizard: {str(e)}")
+        print_error(f"Error: {str(e)}")
+
+
+# Form commands group
+@main.group()
+def form():
+    """Interactive forms for common tasks."""
+    pass
+
+
+@form.command("repository")
+def form_repository():
+    """Run the repository creation form."""
+    logger.debug("Running repository creation form")
+    try:
+        # Create form
+        form = create_repository_form()
+
+        # Render form
+        data = render_form(form)
+
+        if data:
+            # Create repository
+            if confirm("Do you want to create the repository now?", default=True):
+                # Get repository name
+                repo_name = f"{data['owner']}/{data['name']}"
+
+                # Create repository
+                from .repository import create_repository
+
+                # Get token
+                token = get_github_token()
+                if not token:
+                    print_error("GitHub token not provided. Use GITHUB_TOKEN environment variable.")
+                    return
+
+                # Create repository
+                repo = create_repository(
+                    repo_name,
+                    description=data["description"],
+                    private=(data["visibility"].lower() == "private"),
+                    token=token
+                )
+
+                if repo:
+                    print_success(f"Repository created: {repo['html_url']}")
+
+                    # Create README
+                    if data.get("create_readme"):
+                        from .repository import generate_readme
+
+                        print_info("Creating README.md...")
+                        readme = generate_readme(
+                            repo_name,
+                            data["name"],
+                            data["description"],
+                            token=token
+                        )
+
+                        if readme:
+                            print_success("README.md created.")
+
+                    # Create .gitignore
+                    if data.get("create_gitignore"):
+                        from .repository import generate_gitignore
+
+                        print_info("Creating .gitignore...")
+                        gitignore = generate_gitignore(
+                            repo_name,
+                            "Python",  # Default template
+                            token=token
+                        )
+
+                        if gitignore:
+                            print_success(".gitignore created.")
+
+                    # Create LICENSE
+                    if data.get("create_license"):
+                        from .repository import generate_license
+
+                        print_info("Creating LICENSE...")
+                        license = generate_license(
+                            repo_name,
+                            "mit",  # Default template
+                            token=token
+                        )
+
+                        if license:
+                            print_success("LICENSE created.")
+
+                    print_success(f"Repository setup completed: {repo['html_url']}")
+
+                    # Open repository in browser
+                    if confirm("Open repository in browser?", default=True):
+                        import webbrowser
+                        webbrowser.open(repo["html_url"])
+    except Exception as e:
+        logger.error(f"Error running repository creation form: {str(e)}")
+        print_error(f"Error: {str(e)}")
+
+
+@form.command("issue")
+@click.option("--repo", help="Repository name in format 'owner/repo'")
+def form_issue(repo):
+    """Run the issue creation form."""
+    logger.debug("Running issue creation form")
+    try:
+        # Create form
+        form = create_issue_form(repo)
+
+        # Render form
+        data = render_form(form)
+
+        if data:
+            # Create issue
+            if confirm("Do you want to create the issue now?", default=True):
+                # Get repository name
+                repo_name = data["repo_name"]
+
+                # Create issue
+                from .issues import create_issue
+
+                # Get token
+                token = get_github_token()
+                if not token:
+                    print_error("GitHub token not provided. Use GITHUB_TOKEN environment variable.")
+                    return
+
+                # Create issue
+                issue = create_issue(
+                    repo_name,
+                    data["title"],
+                    data["description"],
+                    labels=data["labels"],
+                    assignees=data.get("assignees", []),
+                    token=token
+                )
+
+                if issue:
+                    print_success(f"Issue created: {issue['html_url']}")
+
+                    # Open issue in browser
+                    if confirm("Open issue in browser?", default=True):
+                        import webbrowser
+                        webbrowser.open(issue["html_url"])
+    except Exception as e:
+        logger.error(f"Error running issue creation form: {str(e)}")
+        print_error(f"Error: {str(e)}")
+
+
+# UI commands group
+@main.group()
+def ui():
+    """User interface commands."""
+    pass
+
+
+@ui.command("color")
+@click.option("--enable/--disable", default=True, help="Enable or disable color output")
+def ui_color(enable):
+    """Enable or disable color output."""
+    logger.debug(f"Setting color output: {enable}")
+    set_color(enable)
+    print_info(f"Color output {'enabled' if enable else 'disabled'}.")
+
+
+@ui.command("interactive")
+@click.option("--enable/--disable", default=True, help="Enable or disable interactive mode")
+def ui_interactive(enable):
+    """Enable or disable interactive mode."""
+    logger.debug(f"Setting interactive mode: {enable}")
+    set_interactive(enable)
+    print_info(f"Interactive mode {'enabled' if enable else 'disabled'}.")
+
+
+@ui.command("clear")
+def ui_clear():
+    """Clear the terminal screen."""
+    logger.debug("Clearing terminal screen")
+    clear_screen()
 
 
 if __name__ == "__main__":

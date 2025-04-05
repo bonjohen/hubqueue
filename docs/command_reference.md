@@ -1347,6 +1347,115 @@ Options:
 - `--upload`: Upload key to GitHub after generation
 - `--token`: GitHub API token (required with --upload)
 
+## Interactive Wizard Commands
+
+### `hubqueue wizard`
+
+Interactive wizards for common tasks.
+
+```
+hubqueue wizard [OPTIONS] COMMAND [ARGS]...
+```
+
+#### `hubqueue wizard repository`
+
+Run the repository creation wizard.
+
+```
+hubqueue wizard repository [OPTIONS]
+```
+
+#### `hubqueue wizard issue`
+
+Run the issue creation wizard.
+
+```
+hubqueue wizard issue [OPTIONS]
+```
+
+Options:
+- `--repo`: Repository name in format 'owner/repo'
+
+#### `hubqueue wizard release`
+
+Run the release creation wizard.
+
+```
+hubqueue wizard release [OPTIONS]
+```
+
+Options:
+- `--repo`: Repository name in format 'owner/repo'
+
+## Interactive Form Commands
+
+### `hubqueue form`
+
+Interactive forms for common tasks.
+
+```
+hubqueue form [OPTIONS] COMMAND [ARGS]...
+```
+
+#### `hubqueue form repository`
+
+Run the repository creation form.
+
+```
+hubqueue form repository [OPTIONS]
+```
+
+#### `hubqueue form issue`
+
+Run the issue creation form.
+
+```
+hubqueue form issue [OPTIONS]
+```
+
+Options:
+- `--repo`: Repository name in format 'owner/repo'
+
+## UI Commands
+
+### `hubqueue ui`
+
+User interface commands.
+
+```
+hubqueue ui [OPTIONS] COMMAND [ARGS]...
+```
+
+#### `hubqueue ui color`
+
+Enable or disable color output.
+
+```
+hubqueue ui color [OPTIONS]
+```
+
+Options:
+- `--enable/--disable`: Enable or disable color output (default: enable)
+
+#### `hubqueue ui interactive`
+
+Enable or disable interactive mode.
+
+```
+hubqueue ui interactive [OPTIONS]
+```
+
+Options:
+- `--enable/--disable`: Enable or disable interactive mode (default: enable)
+
+#### `hubqueue ui clear`
+
+Clear the terminal screen.
+
+```
+hubqueue ui clear [OPTIONS]
+```
+
 #### `hubqueue ssh upload`
 
 Upload an SSH key to GitHub.

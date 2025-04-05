@@ -292,6 +292,23 @@ hubqueue notification mark-read 12345
 hubqueue notification poll
 ```
 
+### Interactive Features
+
+```bash
+# Run the repository creation wizard
+hubqueue wizard repository
+
+# Run the issue creation wizard
+hubqueue wizard issue --repo owner/repo
+
+# Run the repository creation form
+hubqueue form repository
+
+# Customize the UI
+hubqueue ui color --enable
+hubqueue ui interactive --enable
+```
+
 ## Configuration
 
 ```bash

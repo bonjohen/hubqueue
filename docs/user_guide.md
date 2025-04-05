@@ -19,7 +19,8 @@ This guide provides detailed information on how to use HubQueue, a command-line 
 13. [System Management](#system-management)
 14. [SSH Key Management](#ssh-key-management)
 15. [Notifications](#notifications)
-16. [Logging](#logging)
+16. [Interactive Features](#interactive-features)
+17. [Logging](#logging)
 
 ## Installation
 
@@ -743,6 +744,54 @@ hubqueue notification subscribe 12345 --ignore
 
 # Poll for new notifications
 hubqueue notification poll --interval 60
+```
+
+## Interactive Features
+
+HubQueue provides interactive features to make common tasks easier, including wizards, forms, and a rich command-line interface.
+
+### Interactive Wizards
+
+Wizards guide you through complex tasks step by step:
+
+```bash
+# Create a new repository with the repository wizard
+hubqueue wizard repository
+
+# Create a new issue with the issue wizard
+hubqueue wizard issue --repo owner/repo
+
+# Create a new release with the release wizard
+hubqueue wizard release --repo owner/repo
+```
+
+### Interactive Forms
+
+Forms provide a structured way to input data:
+
+```bash
+# Create a new repository with the repository form
+hubqueue form repository
+
+# Create a new issue with the issue form
+hubqueue form issue --repo owner/repo
+```
+
+### UI Customization
+
+Customize the user interface:
+
+```bash
+# Enable or disable color output
+hubqueue ui color --enable
+hubqueue ui color --disable
+
+# Enable or disable interactive mode
+hubqueue ui interactive --enable
+hubqueue ui interactive --disable
+
+# Clear the terminal screen
+hubqueue ui clear
 ```
 
 ## Gist Management
