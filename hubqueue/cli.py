@@ -1,6 +1,7 @@
 """
 Command-line interface for HubQueue.
 """
+import os
 import click
 import webbrowser
 from pathlib import Path
@@ -36,6 +37,11 @@ from .workflow import (
     get_workflow_run, monitor_workflow_run, cancel_workflow_run,
     rerun_workflow_run, list_repository_secrets, create_repository_secret,
     delete_repository_secret, list_workflow_caches, delete_workflow_cache
+)
+from .gist import (
+    list_gists, get_gist, create_gist, update_gist, delete_gist,
+    star_gist, unstar_gist, is_gist_starred, add_gist_comment,
+    delete_gist_comment, fork_gist, download_gist, upload_gist
 )
 from .logging import get_logger, setup_logging
 
@@ -1302,6 +1308,470 @@ def delete_cache(repo_name, cache_id, cache_key, token):
             click.echo(f"Failed to delete workflow cache")
     except Exception as e:
         logger.error(f"Error deleting workflow cache: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+# Gist management commands group
+@main.group()
+def gist():
+    """Gist management commands."""
+    pass
+
+
+@gist.command("list")
+@click.option("--public", is_flag=True, help="List only public gists")
+@click.option("--starred", is_flag=True, help="List starred gists instead of owned gists")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+@click.option("--format", type=click.Choice(["table", "simple"]), default="simple",
+              help="Output format (default: simple)")
+def list_gists_cmd(public, starred, token, format):
+    """List GitHub Gists for the authenticated user."""
+    logger.debug(f"Listing {'public' if public else 'all'} {'starred' if starred else 'owned'} gists")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # List gists
+        gists = list_gists(public, starred, token)
+
+        if not gists:
+            logger.info(f"No gists found")
+            click.echo(f"No gists found")
+            return
+
+        # Display gists
+        if format == "table":
+            headers = ["ID", "Description", "Files", "Public", "Updated"]
+            table_data = [
+                [
+                    gist["id"],
+                    (gist["description"] or "")[:30] + ("..." if len(gist["description"] or "") > 30 else ""),
+                    ", ".join(list(gist["files"].keys())),
+                    "Yes" if gist["public"] else "No",
+                    gist["updated_at"],
+                ] for gist in gists
+            ]
+
+            click.echo(f"{'Public' if public else 'All'} {'starred' if starred else 'owned'} gists:")
+            click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
+        else:
+            # Simple format
+            click.echo(f"{'Public' if public else 'All'} {'starred' if starred else 'owned'} gists:")
+            for gist in gists:
+                files_str = ", ".join(list(gist["files"].keys()))
+                visibility = "public" if gist["public"] else "private"
+                desc = f": {gist['description']}" if gist["description"] else ""
+                click.echo(f"{gist['id']} [{visibility}] [{files_str}]{desc}")
+    except Exception as e:
+        logger.error(f"Error listing gists: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@gist.command("view")
+@click.argument("gist_id")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+@click.option("--raw", is_flag=True, help="Show raw file content")
+def view_gist(gist_id, token, raw):
+    """View detailed information about a gist."""
+    logger.debug(f"Viewing gist {gist_id}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Get gist
+        gist = get_gist(gist_id, token)
+
+        # Display gist information
+        click.echo(f"Gist: {gist['id']}")
+        click.echo(f"Description: {gist['description'] or 'N/A'}")
+        click.echo(f"Visibility: {'Public' if gist['public'] else 'Private'}")
+        click.echo(f"Owner: {gist['owner'] or 'N/A'}")
+        click.echo(f"Created: {gist['created_at']}")
+        click.echo(f"Updated: {gist['updated_at']}")
+        click.echo(f"URL: {gist['url']}")
+
+        # Check if gist is starred
+        try:
+            starred = is_gist_starred(gist_id, token)
+            click.echo(f"Starred: {'Yes' if starred else 'No'}")
+        except Exception:
+            pass
+
+        # Display files
+        click.echo(f"\nFiles ({len(gist['files'])}):")
+        for filename, file_info in gist["files"].items():
+            click.echo(f"\n  {filename} ({file_info['language'] or 'Unknown'}, {file_info['size']} bytes)")
+            if raw:
+                click.echo("\n" + file_info["content"])
+            else:
+                # Show first 5 lines
+                lines = file_info["content"].split("\n")[:5]
+                click.echo("\n  " + "\n  ".join(lines))
+                if len(file_info["content"].split("\n")) > 5:
+                    click.echo("  ...")
+
+        # Display comments
+        if gist["comments"]:
+            click.echo(f"\nComments ({len(gist['comments'])}):")
+            for i, comment in enumerate(gist["comments"], 1):
+                click.echo(f"\n  Comment #{i} by {comment['user']} on {comment['created_at']}:")
+                click.echo(f"  {comment['body']}")
+    except Exception as e:
+        logger.error(f"Error viewing gist: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@gist.command("create")
+@click.option("--file", "files", multiple=True, help="File to include (can be specified multiple times)")
+@click.option("--content", multiple=True, help="File content in format 'filename:content' (can be specified multiple times)")
+@click.option("--description", help="Gist description")
+@click.option("--public/--private", default=False, help="Whether the gist is public (default: private)")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def create_gist_cmd(files, content, description, public, token):
+    """Create a new gist."""
+    logger.debug(f"Creating {'public' if public else 'private'} gist")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    if not files and not content:
+        logger.error("No files or content provided")
+        click.echo("Error: You must provide at least one file (--file) or content (--content)")
+        return
+
+    try:
+        # Prepare files dictionary
+        files_dict = {}
+
+        # Add files from --file option
+        for file_path in files:
+            if not os.path.isfile(file_path):
+                logger.error(f"File {file_path} does not exist")
+                click.echo(f"Error: File {file_path} does not exist")
+                continue
+
+            with open(file_path, "r", encoding="utf-8") as f:
+                file_content = f.read()
+
+            filename = os.path.basename(file_path)
+            files_dict[filename] = file_content
+
+        # Add content from --content option
+        for content_str in content:
+            if ":" not in content_str:
+                logger.error(f"Invalid content format: {content_str}")
+                click.echo(f"Error: Invalid content format: {content_str}. Use 'filename:content'")
+                continue
+
+            filename, file_content = content_str.split(":", 1)
+            files_dict[filename] = file_content
+
+        if not files_dict:
+            logger.error("No valid files or content provided")
+            click.echo("Error: No valid files or content provided")
+            return
+
+        # Create gist
+        gist = create_gist(files_dict, description or "", public, token)
+
+        logger.info(f"Created gist {gist['id']}")
+        click.echo(f"Created gist: {gist['id']}")
+        click.echo(f"URL: {gist['url']}")
+        click.echo(f"Files: {', '.join(list(gist['files'].keys()))}")
+    except Exception as e:
+        logger.error(f"Error creating gist: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@gist.command("update")
+@click.argument("gist_id")
+@click.option("--file", "files", multiple=True, help="File to update (can be specified multiple times)")
+@click.option("--content", multiple=True, help="File content in format 'filename:content' (can be specified multiple times)")
+@click.option("--description", help="New gist description")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def update_gist_cmd(gist_id, files, content, description, token):
+    """Update an existing gist."""
+    logger.debug(f"Updating gist {gist_id}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    if not files and not content and description is None:
+        logger.error("No updates provided")
+        click.echo("Error: You must provide at least one file (--file), content (--content), or description (--description)")
+        return
+
+    try:
+        # Prepare files dictionary
+        files_dict = {}
+
+        # Add files from --file option
+        for file_path in files:
+            if not os.path.isfile(file_path):
+                logger.error(f"File {file_path} does not exist")
+                click.echo(f"Error: File {file_path} does not exist")
+                continue
+
+            with open(file_path, "r", encoding="utf-8") as f:
+                file_content = f.read()
+
+            filename = os.path.basename(file_path)
+            files_dict[filename] = file_content
+
+        # Add content from --content option
+        for content_str in content:
+            if ":" not in content_str:
+                logger.error(f"Invalid content format: {content_str}")
+                click.echo(f"Error: Invalid content format: {content_str}. Use 'filename:content'")
+                continue
+
+            filename, file_content = content_str.split(":", 1)
+            files_dict[filename] = file_content
+
+        # Update gist
+        gist = update_gist(gist_id, files_dict if files_dict else None, description, token)
+
+        logger.info(f"Updated gist {gist_id}")
+        click.echo(f"Updated gist: {gist['id']}")
+        click.echo(f"URL: {gist['url']}")
+        click.echo(f"Files: {', '.join(list(gist['files'].keys()))}")
+    except Exception as e:
+        logger.error(f"Error updating gist: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@gist.command("delete")
+@click.argument("gist_id")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+@click.option("--confirm", is_flag=True, help="Skip confirmation prompt")
+def delete_gist_cmd(gist_id, token, confirm):
+    """Delete a gist."""
+    logger.debug(f"Deleting gist {gist_id}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Confirm deletion
+        if not confirm:
+            if not click.confirm(f"Are you sure you want to delete gist {gist_id}?"):
+                click.echo("Deletion cancelled.")
+                return
+
+        # Delete gist
+        result = delete_gist(gist_id, token)
+
+        if result:
+            logger.info(f"Deleted gist {gist_id}")
+            click.echo(f"Deleted gist {gist_id}")
+        else:
+            logger.warning(f"Failed to delete gist {gist_id}")
+            click.echo(f"Failed to delete gist {gist_id}")
+    except Exception as e:
+        logger.error(f"Error deleting gist: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@gist.command("star")
+@click.argument("gist_id")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def star_gist_cmd(gist_id, token):
+    """Star a gist."""
+    logger.debug(f"Starring gist {gist_id}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Star gist
+        result = star_gist(gist_id, token)
+
+        if result:
+            logger.info(f"Starred gist {gist_id}")
+            click.echo(f"Starred gist {gist_id}")
+        else:
+            logger.warning(f"Failed to star gist {gist_id}")
+            click.echo(f"Failed to star gist {gist_id}")
+    except Exception as e:
+        logger.error(f"Error starring gist: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@gist.command("unstar")
+@click.argument("gist_id")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def unstar_gist_cmd(gist_id, token):
+    """Unstar a gist."""
+    logger.debug(f"Unstarring gist {gist_id}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Unstar gist
+        result = unstar_gist(gist_id, token)
+
+        if result:
+            logger.info(f"Unstarred gist {gist_id}")
+            click.echo(f"Unstarred gist {gist_id}")
+        else:
+            logger.warning(f"Failed to unstar gist {gist_id}")
+            click.echo(f"Failed to unstar gist {gist_id}")
+    except Exception as e:
+        logger.error(f"Error unstarring gist: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@gist.command("comment")
+@click.argument("gist_id")
+@click.argument("body")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def comment_gist(gist_id, body, token):
+    """Add a comment to a gist."""
+    logger.debug(f"Adding comment to gist {gist_id}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Add comment
+        comment = add_gist_comment(gist_id, body, token)
+
+        logger.info(f"Added comment to gist {gist_id}")
+        click.echo(f"Added comment to gist {gist_id}")
+        click.echo(f"Comment ID: {comment['id']}")
+    except Exception as e:
+        logger.error(f"Error adding comment to gist: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@gist.command("delete-comment")
+@click.argument("gist_id")
+@click.argument("comment_id", type=int)
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+@click.option("--confirm", is_flag=True, help="Skip confirmation prompt")
+def delete_comment(gist_id, comment_id, token, confirm):
+    """Delete a comment from a gist."""
+    logger.debug(f"Deleting comment {comment_id} from gist {gist_id}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Confirm deletion
+        if not confirm:
+            if not click.confirm(f"Are you sure you want to delete comment {comment_id} from gist {gist_id}?"):
+                click.echo("Deletion cancelled.")
+                return
+
+        # Delete comment
+        result = delete_gist_comment(gist_id, comment_id, token)
+
+        if result:
+            logger.info(f"Deleted comment {comment_id} from gist {gist_id}")
+            click.echo(f"Deleted comment {comment_id} from gist {gist_id}")
+        else:
+            logger.warning(f"Failed to delete comment {comment_id} from gist {gist_id}")
+            click.echo(f"Failed to delete comment {comment_id} from gist {gist_id}")
+    except Exception as e:
+        logger.error(f"Error deleting comment from gist: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@gist.command("fork")
+@click.argument("gist_id")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def fork_gist_cmd(gist_id, token):
+    """Fork a gist."""
+    logger.debug(f"Forking gist {gist_id}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Fork gist
+        forked_gist = fork_gist(gist_id, token)
+
+        logger.info(f"Forked gist {gist_id} to {forked_gist['id']}")
+        click.echo(f"Forked gist {gist_id} to {forked_gist['id']}")
+        click.echo(f"URL: {forked_gist['url']}")
+    except Exception as e:
+        logger.error(f"Error forking gist: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@gist.command("download")
+@click.argument("gist_id")
+@click.option("--directory", help="Directory to save files to (default: current directory)")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def download_gist_cmd(gist_id, directory, token):
+    """Download a gist to the local filesystem."""
+    logger.debug(f"Downloading gist {gist_id}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Download gist
+        downloaded_files = download_gist(gist_id, directory, token)
+
+        logger.info(f"Downloaded {len(downloaded_files)} files from gist {gist_id}")
+        click.echo(f"Downloaded {len(downloaded_files)} files from gist {gist_id}:")
+        for file_path in downloaded_files:
+            click.echo(f"  {file_path}")
+    except Exception as e:
+        logger.error(f"Error downloading gist: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@gist.command("upload")
+@click.argument("files_or_directory", nargs=-1, required=True)
+@click.option("--description", help="Gist description")
+@click.option("--public/--private", default=False, help="Whether the gist is public (default: private)")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def upload_gist_cmd(files_or_directory, description, public, token):
+    """Upload files to a new gist."""
+    logger.debug(f"Uploading files to a new gist")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Upload files
+        gist_info = upload_gist(list(files_or_directory), description or "", public, token)
+
+        logger.info(f"Uploaded files to gist {gist_info['id']}")
+        click.echo(f"Uploaded files to gist {gist_info['id']}")
+        click.echo(f"URL: {gist_info['url']}")
+        click.echo(f"Files: {', '.join(list(gist_info['files'].keys()))}")
+    except Exception as e:
+        logger.error(f"Error uploading files to gist: {str(e)}")
         click.echo(f"Error: {str(e)}")
 
 

@@ -681,3 +681,193 @@ Options:
 - `--id`: Cache ID to delete
 - `--key`: Cache key to delete
 - `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+## Gist Management Commands
+
+### `hubqueue gist`
+
+Gist management commands.
+
+```
+hubqueue gist [OPTIONS] COMMAND [ARGS]...
+```
+
+#### `hubqueue gist list`
+
+List GitHub Gists for the authenticated user.
+
+```
+hubqueue gist list [OPTIONS]
+```
+
+Options:
+- `--public`: List only public gists
+- `--starred`: List starred gists instead of owned gists
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+- `--format`: Output format (table, simple) (default: simple)
+
+#### `hubqueue gist view`
+
+View detailed information about a gist.
+
+```
+hubqueue gist view [OPTIONS] GIST_ID
+```
+
+Arguments:
+- `GIST_ID`: Gist ID
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+- `--raw`: Show raw file content
+
+#### `hubqueue gist create`
+
+Create a new gist.
+
+```
+hubqueue gist create [OPTIONS]
+```
+
+Options:
+- `--file`: File to include (can be specified multiple times)
+- `--content`: File content in format 'filename:content' (can be specified multiple times)
+- `--description`: Gist description
+- `--public/--private`: Whether the gist is public (default: private)
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue gist update`
+
+Update an existing gist.
+
+```
+hubqueue gist update [OPTIONS] GIST_ID
+```
+
+Arguments:
+- `GIST_ID`: Gist ID
+
+Options:
+- `--file`: File to update (can be specified multiple times)
+- `--content`: File content in format 'filename:content' (can be specified multiple times)
+- `--description`: New gist description
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue gist delete`
+
+Delete a gist.
+
+```
+hubqueue gist delete [OPTIONS] GIST_ID
+```
+
+Arguments:
+- `GIST_ID`: Gist ID
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+- `--confirm`: Skip confirmation prompt
+
+#### `hubqueue gist star`
+
+Star a gist.
+
+```
+hubqueue gist star [OPTIONS] GIST_ID
+```
+
+Arguments:
+- `GIST_ID`: Gist ID
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue gist unstar`
+
+Unstar a gist.
+
+```
+hubqueue gist unstar [OPTIONS] GIST_ID
+```
+
+Arguments:
+- `GIST_ID`: Gist ID
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue gist comment`
+
+Add a comment to a gist.
+
+```
+hubqueue gist comment [OPTIONS] GIST_ID BODY
+```
+
+Arguments:
+- `GIST_ID`: Gist ID
+- `BODY`: Comment body
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue gist delete-comment`
+
+Delete a comment from a gist.
+
+```
+hubqueue gist delete-comment [OPTIONS] GIST_ID COMMENT_ID
+```
+
+Arguments:
+- `GIST_ID`: Gist ID
+- `COMMENT_ID`: Comment ID
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+- `--confirm`: Skip confirmation prompt
+
+#### `hubqueue gist fork`
+
+Fork a gist.
+
+```
+hubqueue gist fork [OPTIONS] GIST_ID
+```
+
+Arguments:
+- `GIST_ID`: Gist ID
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue gist download`
+
+Download a gist to the local filesystem.
+
+```
+hubqueue gist download [OPTIONS] GIST_ID
+```
+
+Arguments:
+- `GIST_ID`: Gist ID
+
+Options:
+- `--directory`: Directory to save files to (default: current directory)
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue gist upload`
+
+Upload files to a new gist.
+
+```
+hubqueue gist upload [OPTIONS] FILES_OR_DIRECTORY...
+```
+
+Arguments:
+- `FILES_OR_DIRECTORY`: Files or directory to upload
+
+Options:
+- `--description`: Gist description
+- `--public/--private`: Whether the gist is public (default: private)
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)

@@ -187,6 +187,25 @@ hubqueue workflow secrets owner/repo
 hubqueue workflow set-secret owner/repo API_KEY
 ```
 
+### Gist Management
+
+```bash
+# List your gists
+hubqueue gist list
+
+# Create a new gist
+hubqueue gist create --file script.py --description "My script"
+
+# View a gist
+hubqueue gist view abc123
+
+# Update a gist
+hubqueue gist update abc123 --file updated_script.py
+
+# Download a gist
+hubqueue gist download abc123 --directory gists/
+```
+
 ## Configuration
 
 ```bash

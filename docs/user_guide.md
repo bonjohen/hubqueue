@@ -13,7 +13,8 @@ This guide provides detailed information on how to use HubQueue, a command-line 
 7. [Issue Tracking](#issue-tracking)
 8. [Release Management](#release-management)
 9. [Workflow Automation](#workflow-automation)
-10. [Logging](#logging)
+10. [Gist Management](#gist-management)
+11. [Logging](#logging)
 
 ## Installation
 
@@ -508,6 +509,85 @@ hubqueue workflow delete-cache owner/repo --id 12345
 
 # Delete a cache by key
 hubqueue workflow delete-cache owner/repo --key npm-cache
+```
+
+## Gist Management
+
+HubQueue provides tools for managing GitHub Gists, including creating, updating, and interacting with gists.
+
+### Gist Creation and Management
+
+Create and manage GitHub Gists:
+
+```bash
+# Create a new gist from files
+hubqueue gist create --file script.py --file README.md --description "My useful scripts"
+
+# Create a gist with inline content
+hubqueue gist create --content "hello.txt:Hello, world!" --description "Hello World"
+
+# Create a public gist
+hubqueue gist create --file script.py --public
+
+# Update an existing gist
+hubqueue gist update abc123 --file updated_script.py --description "Updated scripts"
+
+# Delete a gist
+hubqueue gist delete abc123
+```
+
+### Gist Listing and Viewing
+
+List and view GitHub Gists:
+
+```bash
+# List all your gists
+hubqueue gist list
+
+# List only public gists
+hubqueue gist list --public
+
+# List starred gists
+hubqueue gist list --starred
+
+# View a gist with detailed information
+hubqueue gist view abc123
+
+# View a gist with raw file content
+hubqueue gist view abc123 --raw
+```
+
+### Gist Interaction
+
+Interact with GitHub Gists:
+
+```bash
+# Star a gist
+hubqueue gist star abc123
+
+# Unstar a gist
+hubqueue gist unstar abc123
+
+# Fork a gist
+hubqueue gist fork abc123
+
+# Add a comment to a gist
+hubqueue gist comment abc123 "This is a great gist!"
+
+# Delete a comment from a gist
+hubqueue gist delete-comment abc123 12345
+```
+
+### Gist File Operations
+
+Work with gist files locally:
+
+```bash
+# Download a gist to the local filesystem
+hubqueue gist download abc123 --directory gists/
+
+# Upload local files to a new gist
+hubqueue gist upload script.py README.md --description "My project files"
 ```
 
 ## Command Reference
