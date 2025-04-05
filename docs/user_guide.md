@@ -794,6 +794,53 @@ hubqueue ui interactive --disable
 hubqueue ui clear
 ```
 
+## Error Handling
+
+HubQueue provides comprehensive error handling features to help you troubleshoot issues and recover from errors.
+
+### Error Types
+
+HubQueue defines several error types for different situations:
+
+- Authentication errors: When authentication with GitHub fails
+- Authorization errors: When you don't have permission to access a resource
+- Not found errors: When a resource doesn't exist
+- Validation errors: When input validation fails
+- Rate limit errors: When you've exceeded GitHub's rate limits
+- Server errors: When GitHub's servers encounter an error
+- Configuration errors: When there's an issue with your configuration
+- Network errors: When there's a network connectivity issue
+- Input errors: When there's an issue with your input
+
+### Error Commands
+
+```bash
+# Enable or disable debug mode
+hubqueue error debug --enable
+hubqueue error debug --disable
+
+# Test error handling
+hubqueue error test --type validation
+
+# Create an error report
+hubqueue error report --type network --output error_report.json
+
+# Show detailed information about an error
+hubqueue error details --type server
+```
+
+### Debug Mode
+
+You can enable debug mode to get more detailed error messages:
+
+```bash
+# Enable debug mode for a single command
+hubqueue --debug repository list owner/repo
+
+# Enable debug mode for all commands
+hubqueue error debug --enable
+```
+
 ## Gist Management
 
 HubQueue provides tools for managing GitHub Gists, including creating, updating, and interacting with gists.

@@ -72,17 +72,23 @@ from .notifications import (
     get_notification_details, subscribe_to_thread, poll_notifications
 )
 from .ui import (
-    Color, print_color, print_header, print_info, print_success,
-    print_warning, print_error, print_debug, print_table, print_json,
-    print_progress_bar, print_spinner, prompt, confirm, select,
-    multi_select, password, pause, clear_screen, set_color,
-    set_interactive, is_interactive, is_color_enabled
+    print_info, print_success, print_error, confirm, clear_screen, set_color,
+    set_interactive
 )
 from .wizard import (
     run_repository_wizard, run_issue_wizard, run_release_wizard
 )
 from .forms import (
     create_repository_form, create_issue_form, render_form
+)
+from .errors import (
+    AuthenticationError, AuthorizationError, NotFoundError,
+    ValidationError, RateLimitError, ServerError, ConfigurationError,
+    NetworkError, InputError, set_debug_mode
+)
+from .error_cli import (
+    handle_cli_error, show_error_details,
+    create_error_report, save_error_report
 )
 from .logging import get_logger, setup_logging
 
@@ -3622,6 +3628,121 @@ def form_issue(repo):
 def ui():
     """User interface commands."""
     pass
+
+
+# Error handling commands group
+@main.group()
+def error():
+    """Error handling commands."""
+    pass
+
+
+@error.command("debug")
+@click.option("--enable/--disable", default=True, help="Enable or disable debug mode")
+def error_debug(enable):
+    """Enable or disable debug mode."""
+    logger.debug(f"Setting debug mode: {enable}")
+    set_debug_mode(enable)
+    print_info(f"Debug mode {'enabled' if enable else 'disabled'}.")
+
+
+@error.command("test")
+@click.option("--type", type=click.Choice(["authentication", "authorization", "not-found", "validation", "rate-limit", "server", "configuration", "network", "input"]), default="input", help="Error type to test")
+def error_test(type):
+    """Test error handling."""
+    logger.debug(f"Testing error handling: {type}")
+
+    try:
+        # Raise error based on type
+        if type == "authentication":
+            raise AuthenticationError("Test authentication error")
+        elif type == "authorization":
+            raise AuthorizationError("Test authorization error")
+        elif type == "not-found":
+            raise NotFoundError("Test not found error")
+        elif type == "validation":
+            raise ValidationError("Test validation error")
+        elif type == "rate-limit":
+            raise RateLimitError("Test rate limit error")
+        elif type == "server":
+            raise ServerError("Test server error")
+        elif type == "configuration":
+            raise ConfigurationError("Test configuration error")
+        elif type == "network":
+            raise NetworkError("Test network error")
+        elif type == "input":
+            raise InputError("Test input error")
+    except Exception as e:
+        # Handle error
+        handle_cli_error(e, exit_on_error=False)
+
+
+@error.command("report")
+@click.option("--type", type=click.Choice(["authentication", "authorization", "not-found", "validation", "rate-limit", "server", "configuration", "network", "input"]), default="input", help="Error type to include in report")
+@click.option("--output", help="Output file path")
+def error_report(type, output):
+    """Create an error report."""
+    logger.debug(f"Creating error report: {type}")
+
+    try:
+        # Raise error based on type
+        if type == "authentication":
+            raise AuthenticationError("Test authentication error")
+        elif type == "authorization":
+            raise AuthorizationError("Test authorization error")
+        elif type == "not-found":
+            raise NotFoundError("Test not found error")
+        elif type == "validation":
+            raise ValidationError("Test validation error")
+        elif type == "rate-limit":
+            raise RateLimitError("Test rate limit error")
+        elif type == "server":
+            raise ServerError("Test server error")
+        elif type == "configuration":
+            raise ConfigurationError("Test configuration error")
+        elif type == "network":
+            raise NetworkError("Test network error")
+        elif type == "input":
+            raise InputError("Test input error")
+    except Exception as e:
+        # Create error report
+        report = create_error_report(e)
+
+        # Save error report
+        file_path = save_error_report(report, output)
+
+        print_info(f"Error report saved to: {file_path}")
+
+
+@error.command("details")
+@click.option("--type", type=click.Choice(["authentication", "authorization", "not-found", "validation", "rate-limit", "server", "configuration", "network", "input"]), default="input", help="Error type to show details for")
+def error_details(type):
+    """Show detailed information about an error."""
+    logger.debug(f"Showing error details: {type}")
+
+    try:
+        # Raise error based on type
+        if type == "authentication":
+            raise AuthenticationError("Test authentication error")
+        elif type == "authorization":
+            raise AuthorizationError("Test authorization error")
+        elif type == "not-found":
+            raise NotFoundError("Test not found error")
+        elif type == "validation":
+            raise ValidationError("Test validation error")
+        elif type == "rate-limit":
+            raise RateLimitError("Test rate limit error")
+        elif type == "server":
+            raise ServerError("Test server error")
+        elif type == "configuration":
+            raise ConfigurationError("Test configuration error")
+        elif type == "network":
+            raise NetworkError("Test network error")
+        elif type == "input":
+            raise InputError("Test input error")
+    except Exception as e:
+        # Show error details
+        show_error_details(e)
 
 
 @ui.command("color")

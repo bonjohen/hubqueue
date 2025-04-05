@@ -1456,6 +1456,61 @@ Clear the terminal screen.
 hubqueue ui clear [OPTIONS]
 ```
 
+## Error Handling Commands
+
+### `hubqueue error`
+
+Error handling commands.
+
+```
+hubqueue error [OPTIONS] COMMAND [ARGS]...
+```
+
+#### `hubqueue error debug`
+
+Enable or disable debug mode.
+
+```
+hubqueue error debug [OPTIONS]
+```
+
+Options:
+- `--enable/--disable`: Enable or disable debug mode (default: enable)
+
+#### `hubqueue error test`
+
+Test error handling.
+
+```
+hubqueue error test [OPTIONS]
+```
+
+Options:
+- `--type`: Error type to test (authentication, authorization, not-found, validation, rate-limit, server, configuration, network, input) (default: input)
+
+#### `hubqueue error report`
+
+Create an error report.
+
+```
+hubqueue error report [OPTIONS]
+```
+
+Options:
+- `--type`: Error type to include in report (authentication, authorization, not-found, validation, rate-limit, server, configuration, network, input) (default: input)
+- `--output`: Output file path
+
+#### `hubqueue error details`
+
+Show detailed information about an error.
+
+```
+hubqueue error details [OPTIONS]
+```
+
+Options:
+- `--type`: Error type to show details for (authentication, authorization, not-found, validation, rate-limit, server, configuration, network, input) (default: input)
+
 #### `hubqueue ssh upload`
 
 Upload an SSH key to GitHub.

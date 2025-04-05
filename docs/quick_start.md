@@ -309,6 +309,22 @@ hubqueue ui color --enable
 hubqueue ui interactive --enable
 ```
 
+### Error Handling
+
+```bash
+# Enable debug mode
+hubqueue --debug repository list owner/repo
+
+# Enable or disable debug mode
+hubqueue error debug --enable
+
+# Test error handling
+hubqueue error test --type validation
+
+# Create an error report
+hubqueue error report --output error_report.json
+```
+
 ## Configuration
 
 ```bash
