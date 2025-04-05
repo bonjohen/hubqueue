@@ -222,6 +222,25 @@ hubqueue template import-github username/template-repo
 hubqueue template generate my-template ./new-project --var project_name=awesome-app
 ```
 
+### Project Management
+
+```bash
+# List project boards
+hubqueue project list owner/repo
+
+# Create a project board
+hubqueue project create owner/repo "Development Roadmap"
+
+# Create a project from a template
+hubqueue project create-from-template owner/repo "Bug Triage" bug_triage
+
+# Add an issue to a project
+hubqueue project add-issue owner/repo 12345 67890 42
+
+# Move a card between columns
+hubqueue project move-card owner/repo 12345 54321 67890
+```
+
 ## Configuration
 
 ```bash

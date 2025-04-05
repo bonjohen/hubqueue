@@ -15,7 +15,8 @@ This guide provides detailed information on how to use HubQueue, a command-line 
 9. [Workflow Automation](#workflow-automation)
 10. [Gist Management](#gist-management)
 11. [Project Templates](#project-templates)
-12. [Logging](#logging)
+12. [Project Management](#project-management)
+13. [Logging](#logging)
 
 ## Installation
 
@@ -556,6 +557,55 @@ hubqueue template variables my-template
 ```
 
 Templates support Jinja2 templating for both file content and filenames, allowing for dynamic project generation based on provided variables.
+
+## Project Management
+
+HubQueue provides tools for managing GitHub Projects, including creating project boards, managing columns, and tracking issues and pull requests.
+
+### Project Board Management
+
+Manage GitHub Project boards:
+
+```bash
+# List project boards for a repository
+hubqueue project list owner/repo
+
+# View detailed information about a project board
+hubqueue project view owner/repo 12345
+
+# Create a new project board
+hubqueue project create owner/repo "Development Roadmap" --body "Project board for tracking development tasks"
+
+# Create a project board from a template
+hubqueue project create-from-template owner/repo "Bug Triage" bug_triage
+
+# Add a column to a project board
+hubqueue project add-column owner/repo 12345 "In Review"
+
+# Delete a project board
+hubqueue project delete owner/repo 12345
+```
+
+### Project Item Management
+
+Manage items in project boards:
+
+```bash
+# Add an issue to a project board column
+hubqueue project add-issue owner/repo 12345 67890 42
+
+# Add a pull request to a project board column
+hubqueue project add-pr owner/repo 12345 67890 24
+
+# Add a note to a project board column
+hubqueue project add-note owner/repo 12345 67890 "Meeting scheduled for Friday"
+
+# Move a card to a different column
+hubqueue project move-card owner/repo 12345 54321 67890 --position top
+
+# Delete a card from a project board
+hubqueue project delete-card owner/repo 12345 54321
+```
 
 ## Gist Management
 

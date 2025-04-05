@@ -48,6 +48,13 @@ from .templates import (
     import_template_from_github, import_template_from_url,
     generate_project, list_template_variables
 )
+from .projects import (
+    list_project_boards, get_project_board, create_project_board,
+    create_project_column, add_issue_to_project, add_pr_to_project,
+    add_note_to_project, move_project_card, delete_project_card,
+    delete_project_column, delete_project_board, create_project_from_template,
+    configure_project_automation
+)
 from .logging import get_logger, setup_logging
 
 # Get logger
@@ -2051,6 +2058,416 @@ def list_template_variables_cmd(template_name, templates_dir):
                 click.echo(f"  {name}: {info}")
     except Exception as e:
         logger.error(f"Error listing template variables: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+# Project management commands group
+@main.group()
+def project():
+    """Project management commands."""
+    pass
+
+
+@project.command("list")
+@click.argument("repo_name")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+@click.option("--format", type=click.Choice(["table", "simple"]), default="simple",
+              help="Output format (default: simple)")
+def list_projects(repo_name, token, format):
+    """List project boards for a repository."""
+    logger.debug(f"Listing project boards for repository {repo_name}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # List project boards
+        projects = list_project_boards(repo_name, token)
+
+        if not projects:
+            logger.info(f"No project boards found for {repo_name}")
+            click.echo(f"No project boards found for {repo_name}")
+            return
+
+        # Display project boards
+        if format == "table":
+            headers = ["ID", "Name", "State", "Columns", "Updated"]
+            table_data = [
+                [
+                    project["id"],
+                    project["name"],
+                    project["state"],
+                    len(project["columns"]),
+                    project["updated_at"],
+                ] for project in projects
+            ]
+
+            click.echo(f"Project boards for {repo_name}:")
+            click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
+        else:
+            # Simple format
+            click.echo(f"Project boards for {repo_name}:")
+            for project in projects:
+                columns_str = ", ".join([column["name"] for column in project["columns"]])
+                click.echo(f"{project['id']}: {project['name']} [{project['state']}] - Columns: {columns_str}")
+    except Exception as e:
+        logger.error(f"Error listing project boards: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@project.command("view")
+@click.argument("repo_name")
+@click.argument("project_id", type=int)
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def view_project(repo_name, project_id, token):
+    """View detailed information about a project board."""
+    logger.debug(f"Viewing project board {project_id} from repository {repo_name}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Get project board
+        project = get_project_board(repo_name, project_id, token)
+
+        # Display project information
+        click.echo(f"Project: {project['name']} (#{project['id']})")
+        click.echo(f"State: {project['state']}")
+        click.echo(f"Created: {project['created_at']}")
+        click.echo(f"Updated: {project['updated_at']}")
+        click.echo(f"URL: {project['html_url']}")
+
+        if project["body"]:
+            click.echo(f"\nDescription:\n{project['body']}")
+
+        # Display columns
+        click.echo(f"\nColumns ({len(project['columns'])}):")
+        for column in project["columns"]:
+            click.echo(f"\n  {column['name']} (#{column['id']}) - {len(column['cards'])} cards")
+
+            # Display cards
+            if column["cards"]:
+                for card in column["cards"]:
+                    if "content" in card and card["content"]:
+                        content = card["content"]
+                        click.echo(f"    #{content['number']} {content['title']} [{content['state']}] ({content['type']})")
+                    elif card["note"]:
+                        note = card["note"].replace("\n", " ")[:50]
+                        if len(card["note"]) > 50:
+                            note += "..."
+                        click.echo(f"    Note: {note}")
+                    else:
+                        click.echo(f"    Card #{card['id']}")
+    except Exception as e:
+        logger.error(f"Error viewing project board: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@project.command("create")
+@click.argument("repo_name")
+@click.argument("name")
+@click.option("--body", help="Project description")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def create_project(repo_name, name, body, token):
+    """Create a new project board."""
+    logger.debug(f"Creating project board {name} in repository {repo_name}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Create project board
+        project = create_project_board(repo_name, name, body, token)
+
+        logger.info(f"Created project board {name} in {repo_name}")
+        click.echo(f"Created project board: {project['name']} (#{project['id']})")
+        click.echo(f"URL: {project['html_url']}")
+    except Exception as e:
+        logger.error(f"Error creating project board: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@project.command("create-from-template")
+@click.argument("repo_name")
+@click.argument("name")
+@click.argument("template", type=click.Choice(["basic", "automated", "bug_triage"]))
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def create_project_from_template_cmd(repo_name, name, template, token):
+    """Create a project board from a template."""
+    logger.debug(f"Creating project board {name} from template {template} in repository {repo_name}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Create project from template
+        project = create_project_from_template(repo_name, name, template, token)
+
+        logger.info(f"Created project board {name} from template {template} in {repo_name}")
+        click.echo(f"Created project board: {project['name']} (#{project['id']})")
+        click.echo(f"URL: {project['html_url']}")
+
+        # Display columns
+        click.echo(f"\nColumns:")
+        for column in project["columns"]:
+            click.echo(f"  {column['name']} (#{column['id']})")
+    except Exception as e:
+        logger.error(f"Error creating project from template: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@project.command("add-column")
+@click.argument("repo_name")
+@click.argument("project_id", type=int)
+@click.argument("name")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def add_column(repo_name, project_id, name, token):
+    """Add a column to a project board."""
+    logger.debug(f"Adding column {name} to project {project_id} in repository {repo_name}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Create column
+        column = create_project_column(repo_name, project_id, name, token)
+
+        logger.info(f"Added column {name} to project {project_id} in {repo_name}")
+        click.echo(f"Added column: {column['name']} (#{column['id']})")
+    except Exception as e:
+        logger.error(f"Error adding column to project: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@project.command("add-issue")
+@click.argument("repo_name")
+@click.argument("project_id", type=int)
+@click.argument("column_id", type=int)
+@click.argument("issue_number", type=int)
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def add_issue(repo_name, project_id, column_id, issue_number, token):
+    """Add an issue to a project board column."""
+    logger.debug(f"Adding issue {issue_number} to column {column_id} in project {project_id}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Add issue to project
+        card = add_issue_to_project(repo_name, project_id, column_id, issue_number, token)
+
+        logger.info(f"Added issue {issue_number} to column {column_id} in project {project_id}")
+        click.echo(f"Added issue #{issue_number} to project as card #{card['id']}")
+    except Exception as e:
+        logger.error(f"Error adding issue to project: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@project.command("add-pr")
+@click.argument("repo_name")
+@click.argument("project_id", type=int)
+@click.argument("column_id", type=int)
+@click.argument("pr_number", type=int)
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def add_pr(repo_name, project_id, column_id, pr_number, token):
+    """Add a pull request to a project board column."""
+    logger.debug(f"Adding PR {pr_number} to column {column_id} in project {project_id}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Add PR to project
+        card = add_pr_to_project(repo_name, project_id, column_id, pr_number, token)
+
+        logger.info(f"Added PR {pr_number} to column {column_id} in project {project_id}")
+        click.echo(f"Added PR #{pr_number} to project as card #{card['id']}")
+    except Exception as e:
+        logger.error(f"Error adding PR to project: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@project.command("add-note")
+@click.argument("repo_name")
+@click.argument("project_id", type=int)
+@click.argument("column_id", type=int)
+@click.argument("note")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def add_note(repo_name, project_id, column_id, note, token):
+    """Add a note to a project board column."""
+    logger.debug(f"Adding note to column {column_id} in project {project_id}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Add note to project
+        card = add_note_to_project(repo_name, project_id, column_id, note, token)
+
+        logger.info(f"Added note to column {column_id} in project {project_id}")
+        click.echo(f"Added note to project as card #{card['id']}")
+    except Exception as e:
+        logger.error(f"Error adding note to project: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@project.command("move-card")
+@click.argument("repo_name")
+@click.argument("project_id", type=int)
+@click.argument("card_id", type=int)
+@click.argument("column_id", type=int)
+@click.option("--position", type=click.Choice(["top", "bottom"]), default="top",
+              help="Position in column (default: top)")
+@click.option("--after", type=int, help="Position card after this card ID")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def move_card(repo_name, project_id, card_id, column_id, position, after, token):
+    """Move a card to a different column or position."""
+    logger.debug(f"Moving card {card_id} to column {column_id} in project {project_id}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Determine position
+        if after:
+            position = f"after:{after}"
+
+        # Move card
+        result = move_project_card(repo_name, project_id, card_id, column_id, position, token)
+
+        if result:
+            logger.info(f"Moved card {card_id} to column {column_id} in project {project_id}")
+            click.echo(f"Moved card #{card_id} to column #{column_id}")
+        else:
+            logger.warning(f"Failed to move card {card_id} to column {column_id} in project {project_id}")
+            click.echo(f"Failed to move card #{card_id} to column #{column_id}")
+    except Exception as e:
+        logger.error(f"Error moving card: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@project.command("delete-card")
+@click.argument("repo_name")
+@click.argument("project_id", type=int)
+@click.argument("card_id", type=int)
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+@click.option("--confirm", is_flag=True, help="Skip confirmation prompt")
+def delete_card(repo_name, project_id, card_id, token, confirm):
+    """Delete a card from a project board."""
+    logger.debug(f"Deleting card {card_id} from project {project_id}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Confirm deletion
+        if not confirm:
+            if not click.confirm(f"Are you sure you want to delete card {card_id} from project {project_id}?"):
+                click.echo("Deletion cancelled.")
+                return
+
+        # Delete card
+        result = delete_project_card(repo_name, project_id, card_id, token)
+
+        if result:
+            logger.info(f"Deleted card {card_id} from project {project_id}")
+            click.echo(f"Deleted card #{card_id} from project #{project_id}")
+        else:
+            logger.warning(f"Failed to delete card {card_id} from project {project_id}")
+            click.echo(f"Failed to delete card #{card_id} from project #{project_id}")
+    except Exception as e:
+        logger.error(f"Error deleting card: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@project.command("delete-column")
+@click.argument("repo_name")
+@click.argument("project_id", type=int)
+@click.argument("column_id", type=int)
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+@click.option("--confirm", is_flag=True, help="Skip confirmation prompt")
+def delete_column(repo_name, project_id, column_id, token, confirm):
+    """Delete a column from a project board."""
+    logger.debug(f"Deleting column {column_id} from project {project_id}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Confirm deletion
+        if not confirm:
+            if not click.confirm(f"Are you sure you want to delete column {column_id} from project {project_id}?"):
+                click.echo("Deletion cancelled.")
+                return
+
+        # Delete column
+        result = delete_project_column(repo_name, project_id, column_id, token)
+
+        if result:
+            logger.info(f"Deleted column {column_id} from project {project_id}")
+            click.echo(f"Deleted column #{column_id} from project #{project_id}")
+        else:
+            logger.warning(f"Failed to delete column {column_id} from project {project_id}")
+            click.echo(f"Failed to delete column #{column_id} from project #{project_id}")
+    except Exception as e:
+        logger.error(f"Error deleting column: {str(e)}")
+        click.echo(f"Error: {str(e)}")
+
+
+@project.command("delete")
+@click.argument("repo_name")
+@click.argument("project_id", type=int)
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+@click.option("--confirm", is_flag=True, help="Skip confirmation prompt")
+def delete_project(repo_name, project_id, token, confirm):
+    """Delete a project board."""
+    logger.debug(f"Deleting project {project_id} from repository {repo_name}")
+    token = token or get_github_token()
+    if not token:
+        logger.error("GitHub token not provided")
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        # Confirm deletion
+        if not confirm:
+            if not click.confirm(f"Are you sure you want to delete project {project_id} from repository {repo_name}?"):
+                click.echo("Deletion cancelled.")
+                return
+
+        # Delete project
+        result = delete_project_board(repo_name, project_id, token)
+
+        if result:
+            logger.info(f"Deleted project {project_id} from repository {repo_name}")
+            click.echo(f"Deleted project #{project_id} from repository {repo_name}")
+        else:
+            logger.warning(f"Failed to delete project {project_id} from repository {repo_name}")
+            click.echo(f"Failed to delete project #{project_id} from repository {repo_name}")
+    except Exception as e:
+        logger.error(f"Error deleting project: {str(e)}")
         click.echo(f"Error: {str(e)}")
 
 

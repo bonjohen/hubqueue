@@ -1003,3 +1003,211 @@ Arguments:
 
 Options:
 - `--templates-dir`: Directory containing templates
+
+## Project Management Commands
+
+### `hubqueue project`
+
+Project management commands.
+
+```
+hubqueue project [OPTIONS] COMMAND [ARGS]...
+```
+
+#### `hubqueue project list`
+
+List project boards for a repository.
+
+```
+hubqueue project list [OPTIONS] REPO_NAME
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+- `--format`: Output format (table, simple) (default: simple)
+
+#### `hubqueue project view`
+
+View detailed information about a project board.
+
+```
+hubqueue project view [OPTIONS] REPO_NAME PROJECT_ID
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+- `PROJECT_ID`: Project ID
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue project create`
+
+Create a new project board.
+
+```
+hubqueue project create [OPTIONS] REPO_NAME NAME
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+- `NAME`: Project name
+
+Options:
+- `--body`: Project description
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue project create-from-template`
+
+Create a project board from a template.
+
+```
+hubqueue project create-from-template [OPTIONS] REPO_NAME NAME TEMPLATE
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+- `NAME`: Project name
+- `TEMPLATE`: Template name (basic, automated, bug_triage)
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue project add-column`
+
+Add a column to a project board.
+
+```
+hubqueue project add-column [OPTIONS] REPO_NAME PROJECT_ID NAME
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+- `PROJECT_ID`: Project ID
+- `NAME`: Column name
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue project add-issue`
+
+Add an issue to a project board column.
+
+```
+hubqueue project add-issue [OPTIONS] REPO_NAME PROJECT_ID COLUMN_ID ISSUE_NUMBER
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+- `PROJECT_ID`: Project ID
+- `COLUMN_ID`: Column ID
+- `ISSUE_NUMBER`: Issue number
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue project add-pr`
+
+Add a pull request to a project board column.
+
+```
+hubqueue project add-pr [OPTIONS] REPO_NAME PROJECT_ID COLUMN_ID PR_NUMBER
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+- `PROJECT_ID`: Project ID
+- `COLUMN_ID`: Column ID
+- `PR_NUMBER`: Pull request number
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue project add-note`
+
+Add a note to a project board column.
+
+```
+hubqueue project add-note [OPTIONS] REPO_NAME PROJECT_ID COLUMN_ID NOTE
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+- `PROJECT_ID`: Project ID
+- `COLUMN_ID`: Column ID
+- `NOTE`: Note content
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue project move-card`
+
+Move a card to a different column or position.
+
+```
+hubqueue project move-card [OPTIONS] REPO_NAME PROJECT_ID CARD_ID COLUMN_ID
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+- `PROJECT_ID`: Project ID
+- `CARD_ID`: Card ID
+- `COLUMN_ID`: Target column ID
+
+Options:
+- `--position`: Position in column (top, bottom) (default: top)
+- `--after`: Position card after this card ID
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue project delete-card`
+
+Delete a card from a project board.
+
+```
+hubqueue project delete-card [OPTIONS] REPO_NAME PROJECT_ID CARD_ID
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+- `PROJECT_ID`: Project ID
+- `CARD_ID`: Card ID
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+- `--confirm`: Skip confirmation prompt
+
+#### `hubqueue project delete-column`
+
+Delete a column from a project board.
+
+```
+hubqueue project delete-column [OPTIONS] REPO_NAME PROJECT_ID COLUMN_ID
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+- `PROJECT_ID`: Project ID
+- `COLUMN_ID`: Column ID
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+- `--confirm`: Skip confirmation prompt
+
+#### `hubqueue project delete`
+
+Delete a project board.
+
+```
+hubqueue project delete [OPTIONS] REPO_NAME PROJECT_ID
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+- `PROJECT_ID`: Project ID
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+- `--confirm`: Skip confirmation prompt
