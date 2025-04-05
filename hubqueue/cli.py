@@ -4,6 +4,7 @@ Command-line interface for HubQueue.
 import os
 import click
 import webbrowser
+from pathlib import Path
 from dotenv import load_dotenv
 from tabulate import tabulate
 from . import __version__
@@ -16,6 +17,12 @@ from .auth import (
 from .config import (
     get_preference, set_preference, list_preferences,
     get_editor, edit_file, get_default_repo, set_default_repo
+)
+from .repository import (
+    create_repository, clone_repository, init_repository,
+    create_project_directories, generate_gitignore, generate_readme,
+    generate_license, create_branch, stage_and_commit, push_commits,
+    create_pull_request, fork_repository, manage_collaborators
 )
 
 # Load environment variables from .env file
@@ -196,6 +203,229 @@ def get_repo():
         click.echo(f"Default repository: {repo}")
     else:
         click.echo("No default repository set")
+
+
+# Repository management commands group
+@main.group()
+def repo():
+    """Repository management commands."""
+    pass
+
+
+@repo.command()
+@click.argument("name")
+@click.option("--description", help="Repository description")
+@click.option("--private/--public", default=False, help="Whether the repository is private")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def create(name, description, private, token):
+    """Create a new repository on GitHub."""
+    token = token or get_github_token()
+    if not token:
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        repo_info = create_repository(name, description, private, token)
+        click.echo(f"Repository created successfully: {repo_info['html_url']}")
+        click.echo("\nClone with HTTPS:")
+        click.echo(f"  git clone {repo_info['clone_url']}")
+        click.echo("\nClone with SSH:")
+        click.echo(f"  git clone {repo_info['ssh_url']}")
+    except Exception as e:
+        click.echo(f"Error: {str(e)}")
+
+
+@repo.command()
+@click.argument("url")
+@click.option("--directory", help="Directory to clone into")
+@click.option("--token", help="GitHub API token for private repos (or set GITHUB_TOKEN env variable)")
+def clone(url, directory, token):
+    """Clone a repository to the local machine."""
+    token = token or get_github_token()
+
+    try:
+        repo_path = clone_repository(url, directory, token)
+        click.echo(f"Repository cloned successfully to {repo_path}")
+    except Exception as e:
+        click.echo(f"Error: {str(e)}")
+
+
+@repo.command()
+@click.option("--directory", default=".", help="Directory to initialize")
+def init(directory):
+    """Initialize a Git repository in a specified directory."""
+    try:
+        init_repository(directory)
+        click.echo(f"Git repository initialized in {directory}")
+    except Exception as e:
+        click.echo(f"Error: {str(e)}")
+
+
+@repo.command()
+@click.option("--directory", default=".", help="Base directory")
+@click.option("--dirs", multiple=True, help="Directories to create (can be specified multiple times)")
+def create_dirs(directory, dirs):
+    """Create essential project directories."""
+    try:
+        dirs_list = list(dirs) if dirs else None
+        created_dirs = create_project_directories(directory, dirs_list)
+        if created_dirs:
+            click.echo("Created directories:")
+            for dir_path in created_dirs:
+                click.echo(f"  {dir_path}")
+        else:
+            click.echo("No directories created (they may already exist)")
+    except Exception as e:
+        click.echo(f"Error: {str(e)}")
+
+
+@repo.command()
+@click.option("--directory", default=".", help="Directory to create files in")
+@click.option("--name", help="Project name (defaults to directory name)")
+@click.option("--description", help="Project description")
+@click.option("--license", default="MIT", help="License type (default: MIT)")
+@click.option("--author", help="Author name for license")
+@click.option("--gitignore", default="Python", help="Gitignore template (default: Python)")
+def scaffold(directory, name, description, license, author, gitignore):
+    """Generate standard project files (README.md, .gitignore, LICENSE)."""
+    try:
+        # Create directory if it doesn't exist
+        dir_path = Path(directory)
+        if not dir_path.exists():
+            dir_path.mkdir(parents=True)
+            click.echo(f"Created directory: {directory}")
+
+        # Generate README.md
+        try:
+            readme_path = generate_readme(directory, name, description)
+            click.echo(f"Created README.md: {readme_path}")
+        except Exception as e:
+            click.echo(f"Error creating README.md: {str(e)}")
+
+        # Generate .gitignore
+        try:
+            gitignore_path = generate_gitignore(directory, gitignore)
+            click.echo(f"Created .gitignore: {gitignore_path}")
+        except Exception as e:
+            click.echo(f"Error creating .gitignore: {str(e)}")
+
+        # Generate LICENSE
+        try:
+            license_path = generate_license(directory, license, author)
+            click.echo(f"Created LICENSE: {license_path}")
+        except Exception as e:
+            click.echo(f"Error creating LICENSE: {str(e)}")
+    except Exception as e:
+        click.echo(f"Error: {str(e)}")
+
+
+@repo.command()
+@click.argument("branch_name")
+@click.option("--base", default="main", help="Base branch to create from (default: main)")
+@click.option("--directory", default=".", help="Repository directory")
+def branch(branch_name, base, directory):
+    """Create and switch to a new feature branch."""
+    try:
+        created_branch = create_branch(branch_name, base, directory)
+        click.echo(f"Created and switched to branch: {created_branch}")
+    except Exception as e:
+        click.echo(f"Error: {str(e)}")
+
+
+@repo.command()
+@click.argument("message")
+@click.option("--directory", default=".", help="Repository directory")
+@click.option("--files", multiple=True, help="Files to stage (can be specified multiple times)")
+def commit(message, directory, files):
+    """Stage and commit changes to the repository."""
+    try:
+        files_list = list(files) if files else None
+        commit_hash = stage_and_commit(message, directory, files_list)
+        click.echo(f"Changes committed successfully: {commit_hash}")
+    except Exception as e:
+        click.echo(f"Error: {str(e)}")
+
+
+@repo.command()
+@click.option("--remote", default="origin", help="Remote name (default: origin)")
+@click.option("--branch", help="Branch to push (default: current branch)")
+@click.option("--directory", default=".", help="Repository directory")
+def push(remote, branch, directory):
+    """Push commits to the remote repository."""
+    try:
+        push_commits(remote, branch, directory)
+        branch_name = branch or "current branch"
+        click.echo(f"Commits pushed successfully to {remote}/{branch_name}")
+    except Exception as e:
+        click.echo(f"Error: {str(e)}")
+
+
+@repo.command()
+@click.argument("title")
+@click.option("--body", help="Pull request description")
+@click.option("--base", default="main", help="Base branch for PR (default: main)")
+@click.option("--head", help="Head branch for PR (default: current branch)")
+@click.option("--repo", help="Repository name in format 'owner/repo'")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def pr(title, body, base, head, repo, token):
+    """Create a pull request from the current branch to the main branch."""
+    token = token or get_github_token()
+    if not token:
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        pr_info = create_pull_request(title, body, base, head, repo, token)
+        click.echo(f"Pull request created successfully: {pr_info['html_url']}")
+        click.echo(f"PR #{pr_info['number']}: {pr_info['title']}")
+    except Exception as e:
+        click.echo(f"Error: {str(e)}")
+
+
+@repo.command()
+@click.argument("repo_name")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def fork(repo_name, token):
+    """Fork an existing repository to your GitHub account."""
+    token = token or get_github_token()
+    if not token:
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        fork_info = fork_repository(repo_name, token)
+        click.echo(f"Repository forked successfully: {fork_info['html_url']}")
+        click.echo("\nClone with HTTPS:")
+        click.echo(f"  git clone {fork_info['clone_url']}")
+        click.echo("\nClone with SSH:")
+        click.echo(f"  git clone {fork_info['ssh_url']}")
+    except Exception as e:
+        click.echo(f"Error: {str(e)}")
+
+
+@repo.command()
+@click.argument("repo_name")
+@click.argument("username")
+@click.option("--permission", type=click.Choice(["pull", "push", "admin"]), default="push",
+              help="Permission level (default: push)")
+@click.option("--remove", is_flag=True, help="Remove collaborator instead of adding")
+@click.option("--token", help="GitHub API token (or set GITHUB_TOKEN env variable)")
+def collaborator(repo_name, username, permission, remove, token):
+    """Manage repository collaborators and permissions."""
+    token = token or get_github_token()
+    if not token:
+        click.echo("Error: GitHub token not provided. Use --token or set GITHUB_TOKEN environment variable.")
+        return
+
+    try:
+        action = "remove" if remove else "add"
+        manage_collaborators(repo_name, username, permission, not remove, token)
+        if remove:
+            click.echo(f"Collaborator {username} removed from {repo_name}")
+        else:
+            click.echo(f"Collaborator {username} added to {repo_name} with {permission} permission")
+    except Exception as e:
+        click.echo(f"Error: {str(e)}")
 
 
 @main.command()

@@ -1,0 +1,350 @@
+# HubQueue Command Reference
+
+This document provides a comprehensive reference for all commands available in HubQueue.
+
+## Global Options
+
+These options are available for all HubQueue commands:
+
+- `--help`: Show help message and exit
+- `--version`: Show version and exit
+
+## Main Commands
+
+### `hubqueue`
+
+The main entry point for HubQueue.
+
+```
+hubqueue [OPTIONS] COMMAND [ARGS]...
+```
+
+Options:
+- `--version`: Show the version and exit.
+- `--help`: Show help message and exit.
+
+## Authentication Commands
+
+### `hubqueue auth`
+
+Authentication commands for GitHub.
+
+```
+hubqueue auth [OPTIONS] COMMAND [ARGS]...
+```
+
+#### `hubqueue auth login`
+
+Login with GitHub token.
+
+```
+hubqueue auth login [OPTIONS]
+```
+
+Options:
+- `--token`: GitHub API token (will prompt if not provided)
+
+#### `hubqueue auth logout`
+
+Logout and remove stored GitHub token.
+
+```
+hubqueue auth logout [OPTIONS]
+```
+
+#### `hubqueue auth status`
+
+Check authentication status.
+
+```
+hubqueue auth status [OPTIONS]
+```
+
+#### `hubqueue auth oauth`
+
+Login with GitHub OAuth.
+
+```
+hubqueue auth oauth [OPTIONS]
+```
+
+Options:
+- `--client-id`: GitHub OAuth client ID (required)
+- `--client-secret`: GitHub OAuth client secret (required)
+
+## Configuration Commands
+
+### `hubqueue config`
+
+Configuration commands for HubQueue.
+
+```
+hubqueue config [OPTIONS] COMMAND [ARGS]...
+```
+
+#### `hubqueue config list`
+
+List all configuration settings.
+
+```
+hubqueue config list [OPTIONS]
+```
+
+#### `hubqueue config get`
+
+Get a configuration setting.
+
+```
+hubqueue config get [OPTIONS] KEY
+```
+
+Arguments:
+- `KEY`: The configuration key to get
+
+#### `hubqueue config set`
+
+Set a configuration setting.
+
+```
+hubqueue config set [OPTIONS] KEY VALUE
+```
+
+Arguments:
+- `KEY`: The configuration key to set
+- `VALUE`: The value to set
+
+#### `hubqueue config set-editor`
+
+Set the default text editor.
+
+```
+hubqueue config set-editor [OPTIONS] EDITOR
+```
+
+Arguments:
+- `EDITOR`: The text editor command
+
+#### `hubqueue config get-editor-cmd`
+
+Get the default text editor.
+
+```
+hubqueue config get-editor-cmd [OPTIONS]
+```
+
+#### `hubqueue config set-repo`
+
+Set the default repository (format: owner/repo).
+
+```
+hubqueue config set-repo [OPTIONS] REPO
+```
+
+Arguments:
+- `REPO`: Repository in format 'owner/repo'
+
+#### `hubqueue config get-repo`
+
+Get the default repository.
+
+```
+hubqueue config get-repo [OPTIONS]
+```
+
+## Repository Management Commands
+
+### `hubqueue repo`
+
+Repository management commands.
+
+```
+hubqueue repo [OPTIONS] COMMAND [ARGS]...
+```
+
+#### `hubqueue repo create`
+
+Create a new repository on GitHub.
+
+```
+hubqueue repo create [OPTIONS] NAME
+```
+
+Arguments:
+- `NAME`: Repository name
+
+Options:
+- `--description`: Repository description
+- `--private/--public`: Whether the repository is private (default: public)
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue repo clone`
+
+Clone a repository to the local machine.
+
+```
+hubqueue repo clone [OPTIONS] URL
+```
+
+Arguments:
+- `URL`: Repository URL (HTTPS or SSH)
+
+Options:
+- `--directory`: Directory to clone into
+- `--token`: GitHub API token for private repos (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue repo init`
+
+Initialize a Git repository in a specified directory.
+
+```
+hubqueue repo init [OPTIONS]
+```
+
+Options:
+- `--directory`: Directory to initialize (default: current directory)
+
+#### `hubqueue repo create-dirs`
+
+Create essential project directories.
+
+```
+hubqueue repo create-dirs [OPTIONS]
+```
+
+Options:
+- `--directory`: Base directory (default: current directory)
+- `--dirs`: Directories to create (can be specified multiple times)
+
+#### `hubqueue repo scaffold`
+
+Generate standard project files (README.md, .gitignore, LICENSE).
+
+```
+hubqueue repo scaffold [OPTIONS]
+```
+
+Options:
+- `--directory`: Directory to create files in (default: current directory)
+- `--name`: Project name (defaults to directory name)
+- `--description`: Project description
+- `--license`: License type (default: MIT)
+- `--author`: Author name for license
+- `--gitignore`: Gitignore template (default: Python)
+
+#### `hubqueue repo branch`
+
+Create and switch to a new feature branch.
+
+```
+hubqueue repo branch [OPTIONS] BRANCH_NAME
+```
+
+Arguments:
+- `BRANCH_NAME`: Name of the branch to create
+
+Options:
+- `--base`: Base branch to create from (default: main)
+- `--directory`: Repository directory (default: current directory)
+
+#### `hubqueue repo commit`
+
+Stage and commit changes to the repository.
+
+```
+hubqueue repo commit [OPTIONS] MESSAGE
+```
+
+Arguments:
+- `MESSAGE`: Commit message
+
+Options:
+- `--directory`: Repository directory (default: current directory)
+- `--files`: Files to stage (can be specified multiple times)
+
+#### `hubqueue repo push`
+
+Push commits to the remote repository.
+
+```
+hubqueue repo push [OPTIONS]
+```
+
+Options:
+- `--remote`: Remote name (default: origin)
+- `--branch`: Branch to push (default: current branch)
+- `--directory`: Repository directory (default: current directory)
+
+#### `hubqueue repo pr`
+
+Create a pull request from the current branch to the main branch.
+
+```
+hubqueue repo pr [OPTIONS] TITLE
+```
+
+Arguments:
+- `TITLE`: Pull request title
+
+Options:
+- `--body`: Pull request description
+- `--base`: Base branch for PR (default: main)
+- `--head`: Head branch for PR (default: current branch)
+- `--repo`: Repository name in format 'owner/repo'
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue repo fork`
+
+Fork an existing repository to your GitHub account.
+
+```
+hubqueue repo fork [OPTIONS] REPO_NAME
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+
+Options:
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+#### `hubqueue repo collaborator`
+
+Manage repository collaborators and permissions.
+
+```
+hubqueue repo collaborator [OPTIONS] REPO_NAME USERNAME
+```
+
+Arguments:
+- `REPO_NAME`: Repository name in format 'owner/repo'
+- `USERNAME`: GitHub username to add/remove
+
+Options:
+- `--permission`: Permission level (pull, push, admin) (default: push)
+- `--remove`: Remove collaborator instead of adding
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+## Issue and Pull Request Commands
+
+### `hubqueue list-issues`
+
+List open issues for a repository.
+
+```
+hubqueue list-issues [OPTIONS]
+```
+
+Options:
+- `--repo`: Repository name in format 'owner/repo'
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
+
+### `hubqueue list-prs`
+
+List open pull requests for a repository.
+
+```
+hubqueue list-prs [OPTIONS]
+```
+
+Options:
+- `--repo`: Repository name in format 'owner/repo'
+- `--token`: GitHub API token (or set GITHUB_TOKEN env variable)
