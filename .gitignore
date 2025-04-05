@@ -94,6 +94,7 @@ ENV/
 env.bak/
 venv.bak/
 venv_hubqueue/
+*venv*/
 
 # Spyder project settings
 .spyderproject
@@ -126,3 +127,30 @@ dmypy.json
 # GitHub API tokens and credentials
 .github_token
 credentials.json
+
+# Test scripts
+test_hub.cmd
+test_hub_simple.cmd
+test_hub_comprehensive.cmd
+test_hub_simple.sh
+test_hub_comprehensive.sh
+TEST_SCRIPTS_README.md
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*.swo
+*~
+
+# OS specific files
+.DS_Store
+Thumbs.db
+.directory
+.Trash-*
+
+# Coverage reports
+.coverage
+.coverage.*
+coverage.xml
+coverage.json
